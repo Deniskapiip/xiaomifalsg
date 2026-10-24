@@ -48,7 +48,9 @@ Bothost сам добавляет `BOT_TOKEN`, `DOMAIN`, `PORT`, `BOT_ID`, `USER
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` |
 | `INSURANCE_PERCENT` / `PACKING_FEE_RUB` / `PHOTO_REPORT_FEE_RUB` | цены доп. услуг (по умолчанию 2 / 300 / 150) |
 
-Опционально: `DATABASE_URL` (по умолчанию `sqlite+aiosqlite:////app/data/taoji.db`), `WEBAPP_URL` (по умолчанию `https://$DOMAIN`), `ENV`/`BOT_MODE` (по умолчанию `production`/`webhook`).
+Опционально: `DATABASE_URL` (по умолчанию `sqlite+aiosqlite:////app/data/taoji.db`), `WEBAPP_URL` (по умолчанию `https://$DOMAIN`), `ENV`/`BOT_MODE`.
+
+**Не копируйте в панель Bothost свой локальный `.env`.** Значения для Windows-разработки (`HOST=127.0.0.1`, `PORT=8000`, `ENV=development`, `BOT_MODE=polling`, `WEBAPP_URL=https://…ngrok-free.dev`, `DEV_MODE`) на хостинге ломают запуск: дают 502 и открывают мёртвый ngrok-туннель (`ERR_NGROK_3200`). Entrypoint специально принудительно выставляет `HOST=0.0.0.0`, `ENV=production`, `DEV_MODE=false`, `BOT_MODE=webhook`, `WEBAPP_URL=https://$DOMAIN` и SQLite в `/app/data`, поэтому устаревшие значения из локального `.env` больше не мешают.
 
 Секреты можно сгенерировать локально:
 
