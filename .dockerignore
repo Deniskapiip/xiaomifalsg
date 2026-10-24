@@ -2,12 +2,10 @@
 .env.*
 !.env.example
 .venv
+.venv-dsh
 venv
 node_modules
 frontend/node_modules
-frontend/dist
-# deploy/Dockerfile.bothost-prebuilt serves the committed build without Node.
-!frontend/dist
 data
 backups
 imports
