@@ -11,9 +11,30 @@ export function Particles({ className = 'hero-particles', count = 26 }: { classN
     const canvas = canvasRef.current;
     const host = canvas?.parentElement;
     if (!canvas || !host) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const context = canvas.getContext('2d');
     if (!context) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // Настройка «уменьшить движение»: не анимируем, но частицы всё равно рисуем.
+      const reducedRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const reducedWidth = host.clientWidth;
+      const reducedHeight = host.clientHeight;
+      canvas.width = Math.round(reducedWidth * reducedRatio);
+      canvas.height = Math.round(reducedHeight * reducedRatio);
+      canvas.style.width = `${reducedWidth}px`;
+      canvas.style.height = `${reducedHeight}px`;
+      context.setTransform(reducedRatio, 0, 0, reducedRatio, 0, 0);
+      const reducedPalette = ['--m3-primary', '--m3-secondary', '--m3-tertiary'].map(name =>
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#4C8DFF');
+      for (let index = 0; index < count; index += 1) {
+        context.globalAlpha = 0.45;
+        context.fillStyle = reducedPalette[index % reducedPalette.length];
+        context.beginPath();
+        context.arc(Math.random() * reducedWidth, Math.random() * reducedHeight, 1.8 + Math.random() * 2, 0, Math.PI * 2);
+        context.fill();
+      }
+      context.globalAlpha = 1;
+      return;
+    }
 
     let frame = 0;
     let width = 0;
