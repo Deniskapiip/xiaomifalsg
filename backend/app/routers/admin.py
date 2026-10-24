@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db_types import utcnow
 from app.deps import Principal, administrator, owner, session
+from app.errors import AppError
 from app.models import Order, Tariff, User
 from app.schemas import (AdminOrderOut, AdminOrderPage, DashboardOut, NoteIn, SettingsIn, SettingsOut, StatusIn,
                          TariffIn, TariffOut, TrackSetIn)
@@ -90,6 +91,19 @@ async def tracking_change(request: Request, order_id: int, data: TrackSetIn,
         order = await find_order(db, order_id)
         await change_track(db, order, data, principal.user.id)
         return await order_output(db, order, admin=True)
+
+
+@router.post("/orders/{order_id}/tracking/refresh", response_model=AdminOrderOut)
+async def tracking_refresh(request: Request, order_id: int,
+                           principal: Principal = Depends(administrator), db: AsyncSession = Depends(session)):
+    """Ручная проверка трека Добропоста: сразу видно, обновился ли статус заказа."""
+    order = await find_order(db, order_id)
+    if not order.track_number:
+        raise AppError("TRACKING_EMPTY", "У заказа нет трек-номера", 409)
+    from app.services.order_tracking import refresh_order
+    await refresh_order(db, order, request.app.state.settings)
+    await db.refresh(order)
+    return await order_output(db, order, admin=True)
 
 
 @router.get("/settings", response_model=SettingsOut)

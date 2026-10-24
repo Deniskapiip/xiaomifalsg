@@ -89,12 +89,6 @@ export function Home({ config, user, onNavigate }: { config: AppConfig; user: Us
           : <EmptyState title="Ваш первый заказ впереди" description="Найдите товар на китайской площадке и начните со ссылки. Мы покажем расчёт до оформления." actionLabel="Рассчитать заказ" onAction={() => onNavigate({ name: 'wizard' })} />}
       </section>
 
-      <section className="card card--muted" aria-label="Трекинг посылки">
-        <div className="section-heading"><h2>Трекинг посылки</h2><Icon name="truck" size={20} /></div>
-        <p className="muted">Проверяйте статус посылки Добропоста — добавим трек-номер и будем обновлять его автоматически.</p>
-        <button className="button button--secondary button--block" type="button" onClick={() => onNavigate({ name: 'tracking' })}><Icon name="search" size={18} />Отследить посылку</button>
-      </section>
-
       {deliveredOrder && <section className="card card--glow" aria-label="Отзыв о заказе">
         <div className="section-heading"><h2>Отзыв о заказе</h2><Icon name="send" size={20} /></div>
         <p className="muted">Вам понравился ваш заказ {deliveredOrder.public_no}? Оставьте отзыв — это помогает нам и другим покупателям.</p>

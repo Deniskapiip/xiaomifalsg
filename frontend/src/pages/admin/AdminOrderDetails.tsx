@@ -101,6 +101,7 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
   const [noteDirty, setNoteDirty] = useState(false);
   const [trackNumber, setTrackNumber] = useState('');
   const [trackDirty, setTrackDirty] = useState(false);
+  const [trackCheck, setTrackCheck] = useState<string | null>(null);
   const [busy, setBusy] = useState<'status' | 'note' | 'check' | 'track' | null>(null);
   const [dialog, setDialog] = useState<StatusDialog | null>(null);
   const [amount, setAmount] = useState('');
@@ -243,6 +244,27 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
     } finally { if (current(id)) { locked.current = false; setBusy(null); } }
   }
 
+  async function refreshProvider() {
+    if (!order?.track_number || locked.current || uncertain || !current(orderId)) return;
+    const id = orderId;
+    locked.current = true; setBusy('track'); setMessage(null); setMutationError(null); setTrackCheck(null);
+    try {
+      const updated = await request<AdminOrder>(`/admin/orders/${id}/tracking/refresh`, { method: 'POST' });
+      await invalidateOrderQueries(queryClient, updated).catch(() => { /* The server already saved the change. */ });
+      if (!current(id)) return;
+      setTrackNumber(updated.track_number ?? ''); setTrackDirty(false);
+      setTrackCheck(updated.tracking_status_text
+        ? `Статус Добропоста: ${updated.tracking_status_text}`
+        : 'Статус не получен: сервер не смог достучаться до Добропоста.');
+      haptic('success');
+    } catch (error) {
+      if (!current(id)) return;
+      setMutationError(error instanceof Error ? error : new Error('Не удалось проверить трек-номер'));
+      if (uncertainResponse(error)) setUncertain(true);
+      haptic('error');
+    } finally { if (current(id)) { locked.current = false; setBusy(null); } }
+  }
+
   async function copyNumber() {
     if (!order) return;
     const id = orderId; const copied = await copyText(order.public_no);
@@ -311,8 +333,10 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
       <label className="field"><span className="field-label">Номер отслеживания</span><input className="input" aria-label="Номер отслеживания" maxLength={64} disabled={blocked} value={trackNumber} placeholder="Например, CN123456789" onChange={event => { setTrackNumber(event.target.value); setTrackDirty(event.target.value.trim() !== (order.track_number ?? '')); }} /><span className="field-hint">От 3 до 64 символов: латиница, цифры, пробел, дефис, подчёркивание. Клиент увидит номер в заказе и сможет проверить статус в приложении или командой /track.</span></label>
       <div className="admin-dialog__actions">
         <button className="button button--secondary" type="button" disabled={blocked || !trackDirty} onClick={() => void saveTrack()}>{busy === 'track' ? 'Сохраняем…' : 'Сохранить трек-номер'}</button>
+        {order.track_number && <button className="button button--secondary" type="button" disabled={blocked} onClick={() => void refreshProvider()}>{busy === 'track' ? 'Проверяем…' : 'Проверить сейчас'}</button>}
         {order.track_number && <button className="button button--danger" type="button" disabled={blocked} onClick={() => void saveTrack(true)}>Удалить</button>}
       </div>
+      {trackCheck && <p className={order.tracking_status_text ? 'notice notice--info' : 'notice notice--warning'}>{trackCheck}</p>}
       <p className="field-hint">После «Ожидает оплаты доставки» статус заказа обновляется автоматически по Добропосту (каждые 6 часов, первая проверка — в течение минуты). До этого этапа статусы ставите вы, а статус перевозчика просто фиксируется.</p>
       {order.track_number && order.tracking_checked_at && !order.tracking_status_text && <p className="notice notice--warning">Статус Добропоста пока не получен — проверка повторится автоматически.</p>}
       {(order.tracking_status_text || order.tracking_checked_at) && <div className="breakdown">

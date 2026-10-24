@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import uuid4
 
 from sqlalchemy import func, select
 
@@ -115,6 +116,28 @@ async def test_track_set_schedules_immediate_check(client, app, auth_headers, or
     async with app.state.sessions() as db:
         row = await db.get(Order, order["id"])
         assert row.track_number is None and row.tracking_next_check_at is None
+
+
+async def test_manual_provider_refresh_endpoint(client, app, settings, auth_headers, order_payload, monkeypatch):
+    customer = await auth_headers(569)
+    order = (await client.post("/api/orders", json=order_payload, headers=customer)).json()
+    manager = await auth_headers(222)
+    await advance_to_awaiting(client, manager, order["id"])
+    await client.post(f"/api/admin/orders/{order['id']}/tracking", headers=manager,
+                      json={"number": "DBRPST50005", "notify": False})
+
+    provider(monkeypatch, "Посылка доставлена получателю", True)
+    response = await client.post(f"/api/admin/orders/{order['id']}/tracking/refresh", headers=manager)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "delivered"
+    assert body["tracking_status_text"] == "Посылка доставлена получателю"
+
+    empty_customer = await auth_headers(570)
+    empty_payload = {**order_payload, "idempotency_key": str(uuid4())}
+    empty_order = (await client.post("/api/orders", json=empty_payload, headers=empty_customer)).json()
+    assert (await client.post(f"/api/admin/orders/{empty_order['id']}/tracking/refresh",
+                              headers=manager)).status_code == 409
 
 
 def test_status_mapping_and_advance_rules():

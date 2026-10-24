@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AppConfig, Navigate } from '../api/types';
-import { useAddTracking, useOrders, useTrackOrder } from '../api/hooks';
+import { useOrders, useTrackOrder } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { OrderCard } from '../components/OrderCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -9,7 +9,6 @@ import { EmptyState, ErrorState, LoadingState } from '../components/UiStates';
 import { Icon } from '../components/Icon';
 import { dateMsk, decimalNumber, itemTitle, money } from '../lib/format';
 import { platformFromUrl, platformName } from '../lib/platforms';
-import { normalizeTracking, trackingValid } from '../lib/validation';
 import { haptic, openTelegram } from '../lib/telegram';
 
 const pageSize = 20;
@@ -21,8 +20,6 @@ export function Orders({ config, onNavigate }: { config: AppConfig; onNavigate: 
   const [trackInput, setTrackInput] = useState('');
   const [trackLookup, setTrackLookup] = useState<string | null>(null);
   const tracked = useTrackOrder(trackLookup);
-  const addTracking = useAddTracking();
-  const [trackAddNotice, setTrackAddNotice] = useState<{ text: string; ok: boolean } | null>(null);
 
   useEffect(() => {
     if (tracked.data) haptic('success');
@@ -41,17 +38,7 @@ export function Orders({ config, onNavigate }: { config: AppConfig; onNavigate: 
     const value = trackInput.trim();
     if (!value) { haptic('error'); return; }
     haptic('selection');
-    setTrackAddNotice(null);
     if (value === trackLookup) void tracked.refetch(); else setTrackLookup(value);
-  }
-
-  function addToTracking() {
-    const number = normalizeTracking(trackLookup ?? trackInput);
-    if (!trackingValid(number)) { setTrackAddNotice({ text: 'Трек-номер: от 3 до 64 символов — латиница, цифры, пробел, дефис и подчёркивание.', ok: false }); haptic('error'); return; }
-    addTracking.mutate(number, {
-      onSuccess: link => { setTrackAddNotice({ text: `Трек-номер ${link.track_number} добавлен в отслеживание.`, ok: true }); haptic('success'); },
-      onError: caught => { setTrackAddNotice({ text: caught instanceof Error ? caught.message : 'Не удалось добавить трек-номер.', ok: false }); haptic('error'); },
-    });
   }
 
   const trackNotFound = tracked.error instanceof ApiError && tracked.error.status === 404;
@@ -83,11 +70,6 @@ export function Orders({ config, onNavigate }: { config: AppConfig; onNavigate: 
             <Icon name="search" size={18} />{tracked.isFetching ? 'Проверяем…' : 'Проверить статус'}
           </button>
         </form>
-        {trackNotFound && <div className="card card--muted">
-          <p className="field-hint">Заказа с таким номером нет. Добавить в трекинг Добропоста?</p>
-          <button className="button button--secondary button--block" type="button" disabled={addTracking.isPending} onClick={addToTracking}><Icon name="truck" size={18} />{addTracking.isPending ? 'Добавляем…' : 'Добавить в трекинг'}</button>
-          {trackAddNotice && <p className={trackAddNotice.ok ? 'notice notice--success' : 'field-error'} role="status">{trackAddNotice.text}</p>}
-        </div>}
         {tracked.isPending && trackLookup && <LoadingState label="Ищем заказ по номеру" />}
         {tracked.data && <section className="card card--glow" aria-label="Результат проверки трек-номера">
           <div className="section-heading">

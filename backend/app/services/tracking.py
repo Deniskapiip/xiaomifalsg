@@ -60,6 +60,12 @@ def api_urls(track_number: str, settings) -> list[str]:
     if proxy:
         urls.append(f"{proxy}/{kind}?key={quote(key, safe='')}&trackCode={encoded}"
                     "&_x_tr_sl=ru&_x_tr_tl=en&_x_tr_hl=ru")
+    # Публичные прокси-редьюсеры: на случай, если и API, и translate.goog
+    # недоступны с конкретного хостинга (обе отдают тело ответа как есть).
+    direct = f"{base}/{kind}?key={quote(key, safe='')}&trackCode={encoded}" if base else ""
+    if direct:
+        urls.append("https://api.allorigins.win/raw?url=" + quote(direct, safe=""))
+        urls.append("https://api.codetabs.com/v1/proxy?quest=" + quote(direct, safe=""))
     template = (getattr(settings, "dobropost_tracking_url", "") or "").strip()
     if "{track}" in template:
         urls.append(template.replace("{track}", encoded))
