@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Лёгкие «пылинки» на фоне hero: 14–20 частиц, slow drift вверх, тонкие цвета палитры.
+ * Частицы на фоне hero: ~26 точек и «искр» цветов палитры, медленный дрейф вверх.
  * Canvas, devicePixelRatio, пауза во вкладке; отключается при prefers-reduced-motion.
  */
-export function Particles({ className = 'hero-particles', count = 18 }: { className?: string; count?: number }) {
+export function Particles({ className = 'hero-particles', count = 26 }: { className?: string; count?: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -18,7 +18,11 @@ export function Particles({ className = 'hero-particles', count = 18 }: { classN
     let frame = 0;
     let width = 0;
     let height = 0;
-    let particles: { x: number; y: number; radius: number; speed: number; drift: number; phase: number; color: string }[] = [];
+    type Particle = {
+      x: number; y: number; radius: number; speed: number; drift: number;
+      phase: number; color: string; diamond: boolean; glow: boolean;
+    };
+    let particles: Particle[] = [];
     const palette = ['--m3-primary', '--m3-secondary', '--m3-tertiary'].map(name => {
       const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
       return value || '#4C8DFF';
@@ -33,31 +37,53 @@ export function Particles({ className = 'hero-particles', count = 18 }: { classN
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      particles = Array.from({ length: count }, (_, index) => ({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        radius: 1 + Math.random() * 2.2,
-        speed: 0.08 + Math.random() * 0.22,
-        drift: 0.25 + Math.random() * 0.5,
-        phase: Math.random() * Math.PI * 2,
-        color: palette[index % palette.length],
-      }));
+      particles = Array.from({ length: count }, (_, index) => {
+        const radius = 1.6 + Math.random() * 2.6;
+        return {
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius,
+          speed: 0.12 + Math.random() * 0.32,
+          drift: 0.3 + Math.random() * 0.6,
+          phase: Math.random() * Math.PI * 2,
+          color: palette[index % palette.length],
+          diamond: index % 3 === 0,
+          glow: radius > 3,
+        };
+      });
     };
 
     const draw = () => {
       context.clearRect(0, 0, width, height);
       for (const particle of particles) {
         particle.y -= particle.speed;
-        particle.phase += 0.008;
-        particle.x += Math.sin(particle.phase) * particle.drift * 0.25;
-        if (particle.y < -6) { particle.y = height + 6; particle.x = Math.random() * width; }
-        if (particle.x < -6) particle.x = width + 6;
-        if (particle.x > width + 6) particle.x = -6;
-        context.globalAlpha = 0.22 + Math.sin(particle.phase) * 0.1;
+        particle.phase += 0.01;
+        particle.x += Math.sin(particle.phase) * particle.drift * 0.3;
+        if (particle.y < -8) { particle.y = height + 8; particle.x = Math.random() * width; }
+        if (particle.x < -8) particle.x = width + 8;
+        if (particle.x > width + 8) particle.x = -8;
+        // Заметно, но не ярко: «дыхание» от 0.32 до 0.85.
+        context.globalAlpha = 0.34 + (Math.sin(particle.phase) + 1) * 0.25;
         context.fillStyle = particle.color;
-        context.beginPath();
-        context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-        context.fill();
+        if (particle.glow) {
+          context.shadowColor = particle.color;
+          context.shadowBlur = 10;
+        }
+        if (particle.diamond) {
+          const size = particle.radius * 1.9;
+          context.beginPath();
+          context.moveTo(particle.x, particle.y - size);
+          context.lineTo(particle.x + size, particle.y);
+          context.lineTo(particle.x, particle.y + size);
+          context.lineTo(particle.x - size, particle.y);
+          context.closePath();
+          context.fill();
+        } else {
+          context.beginPath();
+          context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+          context.fill();
+        }
+        context.shadowBlur = 0;
       }
       context.globalAlpha = 1;
       frame = window.requestAnimationFrame(draw);

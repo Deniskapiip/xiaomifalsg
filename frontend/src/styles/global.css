@@ -1033,3 +1033,6 @@ dl.breakdown { margin: 8px 0 0; }
   .success-header { animation: none !important; }
   .button:active:not(:disabled) { transform: none; }
 }
+
+/* Частицы должны читаться и на тёмном, и на светлом hero. */
+.hero-particles { opacity: 1; mix-blend-mode: normal; }
