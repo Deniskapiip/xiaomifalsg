@@ -768,3 +768,15 @@ dl.breakdown { margin: 8px 0 0; }
   .page, .status-badge, .order-list > *, .admin-order-wrap, .page-stack > .card, .page-stack > section,
   .admin-stat-grid > *, .contact-grid > *, .admin-status-grid > * { animation: none !important; }
 }
+
+/* Центральная кнопка «Заказать» в нижнем меню. */
+.bottom-nav { overflow: visible; }
+.nav-item--order { position: relative; }
+.nav-item--order .nav-item__icon {
+  width: 52px; height: 44px; border-radius: 16px; transform: translateY(-9px);
+  box-shadow: 0 12px 26px rgba(var(--rgb-accent), 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.nav-item--order .nav-item__icon svg { transform: scale(1.12); }
+.nav-item--order.is-active .nav-item__icon {
+  box-shadow: 0 0 0 4px rgba(var(--rgb-accent), 0.16), 0 14px 32px rgba(var(--rgb-accent), 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}

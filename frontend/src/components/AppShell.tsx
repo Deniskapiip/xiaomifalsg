@@ -5,12 +5,10 @@ import { OfflineBanner } from './UiStates';
 import { ThemeToggle } from './ThemeToggle';
 import { haptic } from '../lib/telegram';
 
-const tabs: { key: Tab; label: string; icon: string }[] = [
-  { key: 'home', label: 'Главная', icon: 'home' },
-  { key: 'wizard', label: 'Заказать', icon: 'plus' },
-  { key: 'orders', label: 'Мои заказы', icon: 'package' },
-  { key: 'help', label: 'Помощь', icon: 'help' },
-];
+const homeTab: { key: Tab; label: string; icon: string } = { key: 'home', label: 'Главная', icon: 'home' };
+const wizardTab = { key: 'wizard' as Tab, label: 'Заказать', icon: 'plus' };
+const ordersTab = { key: 'orders' as Tab, label: 'Мои заказы', icon: 'package' };
+const adminTab = { key: 'admin' as Tab, label: 'Админка', icon: 'settings' };
 
 function tabScreen(key: Tab): Screen {
   return key === 'admin' ? { name: 'admin' } : { name: key };
@@ -19,9 +17,10 @@ function tabScreen(key: Tab): Screen {
 export function AppShell({ user, role, activeTab, onNavigate, children, adminEnabled = false }: {
   user: User; role: Role; activeTab: Tab; onNavigate: Navigate; children: ReactNode; adminEnabled?: boolean;
 }) {
+  // Клиенту «Заказать» стоит по центру; сотрудникам добавляем админку справа.
   const navigation = role !== 'client' && adminEnabled
-    ? [...tabs, { key: 'admin' as Tab, label: 'Админка', icon: 'settings' }]
-    : tabs;
+    ? [homeTab, ordersTab, wizardTab, adminTab]
+    : [homeTab, wizardTab, ordersTab];
   const firstName = user.first_name?.trim() || 'Пользователь';
 
   const navRef = useRef<HTMLElement | null>(null);
@@ -122,7 +121,7 @@ export function AppShell({ user, role, activeTab, onNavigate, children, adminEna
         {lens && <span className="nav-lens" aria-hidden="true" style={{ transform: `translateX(${lens.x}px)`, width: `${lens.width}px` }} />}
         {navigation.map((tab) => (
           <button key={tab.key} data-tab={tab.key} ref={element => { if (element) items.current.set(tab.key, element); else items.current.delete(tab.key); }}
-            className={`nav-item ${activeTab === tab.key ? 'is-active' : ''} ${dragging?.hovering === tab.key ? 'is-hovered' : ''}`}
+            className={`nav-item ${tab.key === 'wizard' ? 'nav-item--order' : ''} ${activeTab === tab.key ? 'is-active' : ''} ${dragging?.hovering === tab.key ? 'is-hovered' : ''}`}
             aria-current={activeTab === tab.key ? 'page' : undefined} type="button"
             onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onNavigate(tabScreen(tab.key)); }}>
             <span className={`nav-item__icon ${tab.key === 'wizard' ? 'nav-item__icon--order' : ''}`}><Icon name={tab.icon} size={22} /></span>

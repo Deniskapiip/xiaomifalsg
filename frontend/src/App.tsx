@@ -11,7 +11,6 @@ import { AppShell } from './components/AppShell';
 import { ErrorState, LoadingState } from './components/UiStates';
 import { Home } from './pages/Home';
 import { Orders } from './pages/Orders';
-import { Help } from './pages/Help';
 import { Onboarding } from './pages/Onboarding';
 import { allowedScreen, readScreen, screenUrl } from './lib/navigation';
 
@@ -112,7 +111,6 @@ function ClientContent({ session }: { session: AuthResponse }) {
     case 'orders': activeTab = 'orders'; body = <Orders config={data} onNavigate={navigate} />; break;
     case 'order': activeTab = 'orders'; body = <DetailsBack onBack={() => navigate({ name: 'orders' })}><OrderDetails config={data} orderId={screen.id} onNavigate={navigate} /></DetailsBack>; break;
     case 'success': activeTab = 'orders'; body = <OrderSuccess config={data} user={session.user} order={screen.order} onNavigate={navigate} />; break;
-    case 'help': activeTab = 'help'; body = <Help config={data} />; break;
     case 'admin': case 'admin-order': activeTab = 'admin'; body = <AdminPanel config={data} role={session.role} screen={screen} onNavigate={navigate} />; break;
     default: activeTab = 'home'; body = <Home config={data} user={session.user} onNavigate={navigate} />;
   }

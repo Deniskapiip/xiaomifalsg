@@ -20,7 +20,7 @@ export function readScreen(role: Role, href = window.location.href): Screen {
     const view = query.get('view');
     return allowedScreen({ name: 'admin', view: ['orders', 'settings', 'tariffs'].includes(view ?? '') ? view as AdminView : 'dashboard', filters }, role);
   }
-  return { name: tab === 'orders' || tab === 'wizard' || tab === 'help' ? tab : 'home' };
+  return { name: tab === 'orders' || tab === 'wizard' ? tab : 'home' };
 }
 export function screenUrl(screen: Screen, href = window.location.href): URL {
   const url = new URL(href);

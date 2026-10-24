@@ -56,7 +56,7 @@ export interface TrackingLink {
   id: number; track_number: string; provider: string; status_text: string; ok: boolean;
   last_checked_at: string | null; next_check_at: string; created_at: string;
 }
-export type Tab = 'home' | 'wizard' | 'orders' | 'help' | 'admin';
+export type Tab = 'home' | 'wizard' | 'orders' | 'admin';
 export type Screen = { name: Exclude<Tab, 'admin'> } | { name: 'order'; id: number } | { name: 'success'; order: Order }
   | { name: 'admin'; view?: import('./admin-types').AdminView; filters?: import('./admin-types').AdminOrderFilters }
   | { name: 'admin-order'; id: number; filters?: import('./admin-types').AdminOrderFilters };
