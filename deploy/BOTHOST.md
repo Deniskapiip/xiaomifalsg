@@ -5,7 +5,8 @@ Bothost запускает проект как **один Docker-контейн�
 - один процесс `python -m app.main` (Uvicorn, ровно один worker), бот — через webhook;
 - SQLite в WAL на постоянном диске `/app/data`, без Redis и Celery;
 - миграции и seed выполняются автоматически при старте (`deploy/bothost-entrypoint.sh`);
-- фронтенд лежит в образе (`frontend/dist`) и раздаётся тем же FastAPI;
+- фронтенд лежит в репозитории (`frontend/dist`) и раздаётся тем же FastAPI; в образе **нет Node-сборки**, поэтому сборка на Bothost быстрая и не упирается в 256 МБ RAM;
+- базовый образ — Python 3.12: все версии из `requirements.txt` имеют готовые wheels, компиляция в контейнере не нужна;
 - все секреты — только в переменных окружения панели Bothost.
 
 ## 0. Что важно знать про Bothost
@@ -65,8 +66,9 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 1. Закоммитьте и запушьте изменения в подключённую ветку — Bothost сам пересоберёт образ (включая фронтенд через `npm run build`) и перезапустит бота.
 2. Entrypoint при старте выполнит `alembic upgrade head` (сейчас ревизия `0002`) и `python -m app.seed`; данные в `/app/data` сохранятся.
-3. Если сборка фронтенда падает по памяти: соберите локально (`cd frontend; npm.cmd ci; npm.cmd run build`), замените корневой `Dockerfile` файлом `deploy/Dockerfile.bothost-prebuilt` и задеплойте снова — он берёт готовый `frontend/dist` и не запускает Node.
-4. Если деплой идёт ZIP-архивом, готовый `frontend/dist` уже внутри архива, поэтому можно сразу использовать вариант `bothost-prebuilt`.
+3. Если меняли только backend — достаточно запушить. Если меняли интерфейс: соберите его локально (`cd frontend; npm.cmd ci; npm.cmd run build`), закоммитьте обновлённый `frontend/dist` и запушьте — образ подхватит готовые файлы.
+4. Если по какой-то причине хотите собирать фронтенд внутри платформы — замените корневой `Dockerfile` файлом `deploy/Dockerfile.bothost-node` (multi-stage с `npm ci && npm run build`); тогда `frontend/dist` в репозитории не обязателен.
+5. ZIP-архив тоже работает: в нём уже есть `frontend/dist`, а корневой Dockerfile не требует Node.
 
 ## 5. Проверка после деплоя
 

@@ -67,8 +67,8 @@
 
 Добавлено под реальные требования Bothost (код монтируется в `/app`, данные — в `/app/data`, Dockerfile — в корне репозитория):
 
-- `Dockerfile` в корне — основной образ для Bothost: Node-сборка фронтенда на этапе build, приложение в `/srv/taoji-cargo` (вне `/app`, который Bothost монтирует исходниками), постоянная база в `/app/data`;
-- `deploy/Dockerfile.bothost-prebuilt` — запасной вариант для слабого сборщика: берёт готовый `frontend/dist` и не запускает Node (его нужно положить в корень вместо основного `Dockerfile`);
+- `Dockerfile` в корне — основной образ для Bothost: готовый `frontend/dist` из репозитория (без Node-сборки), Python 3.12 с готовыми wheels, приложение в `/srv/taoji-cargo` (вне `/app`, который Bothost монтирует исходниками), постоянная база в `/app/data`;
+- `deploy/Dockerfile.bothost-node` — альтернатива со сборкой фронтенда внутри платформы (если не хотите коммитить `frontend/dist`);
 - `deploy/bothost-entrypoint.sh` — `mkdir /app/data` → `DATABASE_URL` по умолчанию → `WEBAPP_URL=https://$DOMAIN` → `alembic upgrade head` → `seed` → запуск;
 - `deploy/BOTHOST.md` — пошаговая инструкция: галочка «свой Dockerfile», домен и внутренний порт, тарифы (Starter 256 МБ не подходит, нужен Basic), переменные, `/app/data`, обновления и типовые ошибки;
 - `.env.bothost.example` — минимальный набор переменных (BOT_TOKEN/DOMAIN/PORT Bothost подставляет сам).

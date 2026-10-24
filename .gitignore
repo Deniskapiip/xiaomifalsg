@@ -16,7 +16,6 @@ backups/
 *.db-wal
 *.db-shm
 node_modules/
-frontend/dist/
 pnpm-lock.yaml
 *.log
 .taoji-launch.lock

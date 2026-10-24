@@ -2,28 +2,21 @@
 # Файл обязан лежать в КОРНЕ репозитория и включаться галочкой
 # «Использовать собственный Dockerfile» в настройках бота Bothost.
 #
-# Код приложения кладём в /srv/taoji-cargo: Bothost при запуске монтирует
-# каталог /app с исходниками из Git, поэтому образ не должен рассчитывать на
-# файлы внутри /app. Постоянные данные живут в /app/data (см. entrypoint).
+# Сборка намеренно без Node: frontend/dist уже собран и лежит в репозитории.
+# Так образ собирается быстро и не упирается в память сборщика Bothost.
+# Если меняли интерфейс — соберите его локально (npm.cmd ci && npm.cmd run build)
+# и закоммитьте frontend/dist. Вариант со сборкой фронтенда внутри платформы:
+# deploy/Dockerfile.bothost-node (положить в корень под именем Dockerfile).
 #
-# Фронтенд собирается здесь же. Если сборщик Bothost не уложится в память,
-# используйте deploy/Dockerfile.bothost-prebuilt (см. deploy/BOTHOST.md):
-# он берёт готовую frontend/dist и не запускает Node.
-FROM node:24-bookworm-slim AS frontend
-WORKDIR /build/frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
-COPY frontend/ ./
-# tsc проверяет и тесты, а pricing.test.ts импортирует ../../../shared/pricing_cases.json.
-# В Docker-контексте копируем shared рядом с frontend, иначе сборка падает.
-COPY shared/ /build/shared/
-RUN npm run build
-
-FROM python:3.13-slim-bookworm AS app
+# Python 3.12 выбран потому, что все закреплённые в requirements.txt версии
+# имеют готовые wheels для cp312 — установка не требует компиляции.
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONUTF8=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     HOST=0.0.0.0
 
 WORKDIR /srv/taoji-cargo
@@ -31,8 +24,8 @@ COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 COPY backend/ ./backend/
 COPY scripts/ ./scripts/
+COPY frontend/dist/ ./frontend/dist/
 COPY deploy/bothost-entrypoint.sh /usr/local/bin/bothost-entrypoint
-COPY --from=frontend /build/frontend/dist ./frontend/dist/
 RUN chmod 755 /usr/local/bin/bothost-entrypoint \
     && mkdir -p /srv/taoji-cargo/data /srv/taoji-cargo/backups
 

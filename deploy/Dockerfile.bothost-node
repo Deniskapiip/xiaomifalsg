@@ -1,0 +1,39 @@
+# Bothost, вариант со сборкой фронтенда внутри платформы.
+# Нужен, только если вы не хотите коммитить frontend/dist.
+# Использование: положите этот файл в корень репозитория под именем Dockerfile.
+#
+# Код приложения кладём в /srv/taoji-cargo: Bothost при запуске монтирует
+# каталог /app с исходниками из Git, поэтому образ не должен рассчитывать на
+# файлы внутри /app. Постоянные данные живут в /app/data (см. entrypoint).
+FROM node:24-bookworm-slim AS frontend
+WORKDIR /build/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+# tsc проверяет и тесты, а pricing.test.ts импортирует ../../../shared/pricing_cases.json.
+# В Docker-контексте копируем shared рядом с frontend, иначе сборка падает.
+COPY shared/ /build/shared/
+RUN npm run build
+
+FROM python:3.12-slim-bookworm AS app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONUTF8=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HOST=0.0.0.0
+
+WORKDIR /srv/taoji-cargo
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+COPY backend/ ./backend/
+COPY scripts/ ./scripts/
+COPY deploy/bothost-entrypoint.sh /usr/local/bin/bothost-entrypoint
+COPY --from=frontend /build/frontend/dist ./frontend/dist/
+RUN chmod 755 /usr/local/bin/bothost-entrypoint \
+    && mkdir -p /srv/taoji-cargo/data /srv/taoji-cargo/backups
+
+WORKDIR /srv/taoji-cargo/backend
+EXPOSE 8000
+ENTRYPOINT ["/usr/local/bin/bothost-entrypoint"]
