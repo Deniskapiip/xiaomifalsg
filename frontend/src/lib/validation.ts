@@ -9,7 +9,7 @@ export interface DraftFields {
   boxes: string;
   insurance_enabled: boolean; packing_enabled: boolean; photo_report_enabled: boolean;
 }
-export const MAX_ITEMS = 20;
+export const MAX_ITEMS = 40;
 let itemSequence = 0;
 
 export function newItemKey(): string {

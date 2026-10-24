@@ -119,8 +119,8 @@ class OrderCreate(Input):
     insurance_enabled: bool = False
     packing_enabled: bool = False
     photo_report_enabled: bool = False
-    # Мультизаказ: 1..20 позиций, у каждой своя ссылка, цена, количество, название и комментарий.
-    items: list[OrderItemIn] = Field(default_factory=list, max_length=20)
+    # Мультизаказ: 1..40 позиций, у каждой своя ссылка, цена, количество, название и комментарий.
+    items: list[OrderItemIn] = Field(default_factory=list, max_length=40)
     # Совместимость со старым API: одна позиция отдельными полями.
     link: str | None = Field(default=None, max_length=2000)
     price_cny: Decimal | None = Field(default=None, ge=Decimal("0.01"), le=Decimal("1000000"), max_digits=12, decimal_places=2)

@@ -32,8 +32,8 @@ describe('order input validation', () => {
     expect(firstStepErrors({ ...validDraft, items: [] })).toHaveProperty('items');
   });
 
-  it('rejects more than twenty positions', () => {
-    const items = Array.from({ length: 21 }, () => createDraftItem({ ...item }));
+  it('rejects more than forty positions', () => {
+    const items = Array.from({ length: 41 }, () => createDraftItem({ ...item }));
     expect(firstStepErrors({ ...validDraft, items })).toHaveProperty('items');
   });
 

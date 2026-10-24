@@ -359,8 +359,8 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
             <div className="field"><label className="field-label" htmlFor={`item-comment-${item.key}`}>Комментарий <span className="field-hint">необязательно</span></label><textarea id={`item-comment-${item.key}`} className="textarea" value={item.comment} maxLength={500} rows={2} placeholder="Размер, цвет и другие детали" onChange={event => changeItem(item.key, 'comment', event.target.value)} onBlur={() => blurItem(item, 'comment')} aria-invalid={Boolean(error('comment'))} />{error('comment') && <p className="field-error">{error('comment')}</p>}<p className="field-hint">{item.comment.length}/500</p></div>
           </div>;
         })}
-        <button className="button button--secondary button--block" type="button" disabled={Boolean(pending) || draft.items.length >= 20} onClick={addPosition}><Icon name="plus" size={18} />Добавить ссылку</button>
-        <p className="field-hint">От 1 до 20 позиций. Для каждой укажите цену в юанях и количество.</p>
+        <button className="button button--secondary button--block" type="button" disabled={Boolean(pending) || draft.items.length >= 40} onClick={addPosition}><Icon name="plus" size={18} />Добавить ссылку</button>
+        <p className="field-hint">От 1 до 40 позиций. Для каждой укажите цену в юанях и количество.</p>
       </section>
       <details className="accordion"><summary>Где взять цену на Taobao?</summary><p>Откройте карточку товара, выберите нужный размер, цвет и вариант. Скопируйте ссылку и укажите показанную цену за одну единицу в юанях. Если цена зависит от условий, добавьте пояснение в комментарий — менеджер её уточнит.</p></details>
       {live && <section className="card card--muted"><p className="field-hint">Предварительно за выкуп</p><strong className="money">{money(live.total_rub)}</strong><p className="field-hint">Товар и комиссия по {positionsLabel(draft.items.length)}. Доставка и доп. услуги считаются отдельно.</p></section>}

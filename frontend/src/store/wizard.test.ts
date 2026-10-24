@@ -150,7 +150,7 @@ describe('persistent order submission state', () => {
 
   it.each([
     ['empty items', { items: [] }],
-    ['too many items', { items: Array.from({ length: 21 }, () => orderItems[0]) }],
+    ['too many items', { items: Array.from({ length: 41 }, () => orderItems[0]) }],
     ['invalid item link', { items: [{ ...orderItems[0], link: 'javascript:alert(1)' }] }],
     ['string quantity', { items: [{ ...orderItems[0], quantity: '1' }] }],
     ['too large quantity', { items: [{ ...orderItems[0], quantity: 1000 }] }],

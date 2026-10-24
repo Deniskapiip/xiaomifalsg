@@ -54,7 +54,7 @@ async def test_invalid_multi_item_payloads_are_rejected(client, auth_headers, or
              if key not in {"link", "price_cny", "quantity", "item_title", "comment"}}
     assert (await client.post("/api/orders", json=empty, headers=headers)).status_code == 422
 
-    too_many = {**empty, "items": [{"link": "https://item.taobao.com/item.htm?id=1", "price_cny": "1"} for _ in range(21)]}
+    too_many = {**empty, "items": [{"link": "https://item.taobao.com/item.htm?id=1", "price_cny": "1"} for _ in range(41)]}
     assert (await client.post("/api/orders", json=too_many, headers=headers)).status_code == 422
 
     bad_quantity = {**empty, "items": [{"link": "https://item.taobao.com/item.htm?id=1", "price_cny": "1", "quantity": 0}]}
