@@ -83,10 +83,6 @@ export function Orders({ config, onNavigate }: { config: AppConfig; onNavigate: 
             <Icon name="search" size={18} />{tracked.isFetching ? 'Проверяем…' : 'Проверить статус'}
           </button>
         </form>
-        <div className="inline-row space-between">
-          <p className="field-hint">Можно сохранить трек-номер — статус будет обновляться автоматически.</p>
-          <button className="button button--ghost" type="button" onClick={() => onNavigate({ name: 'tracking' })}>Все треки<Icon name="chevron-right" size={16} /></button>
-        </div>
         {trackNotFound && <div className="card card--muted">
           <p className="field-hint">Заказа с таким номером нет. Добавить в трекинг Добропоста?</p>
           <button className="button button--secondary button--block" type="button" disabled={addTracking.isPending} onClick={addToTracking}><Icon name="truck" size={18} />{addTracking.isPending ? 'Добавляем…' : 'Добавить в трекинг'}</button>

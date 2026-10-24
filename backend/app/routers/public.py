@@ -22,9 +22,17 @@ async def health(request: Request, db: AsyncSession = Depends(session)):
     interesting = ("x-forwarded-proto", "x-forwarded-for", "x-forwarded-host", "x-real-ip",
                    "x-forwarded-ssl", "forwarded", "cf-connecting-ip", "host")
     proxy_headers = {name: value for name, value in request.headers.items() if name.lower() in interesting}
+    settings = request.app.state.settings
+    try:
+        db_revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
+    except Exception:
+        db_revision = None
     return {"ok": True, "service": "taoji-cargo", "scheme": request.url.scheme,
             "forwarded_proto": proto or None, "client": request.client.host if request.client else None,
-            "secure": is_secure_request(request, request.app.state.settings), "proxy_headers": proxy_headers}
+            "secure": is_secure_request(request, settings), "proxy_headers": proxy_headers,
+            "db_revision": db_revision,
+            "order_tracking": settings.order_tracking_enabled,
+            "tracking_refresh_hours": settings.tracking_refresh_hours}
 
 
 @router.get("/config", response_model=ConfigOut, dependencies=[Depends(current_user)])
