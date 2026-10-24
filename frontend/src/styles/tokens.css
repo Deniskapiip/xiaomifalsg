@@ -229,3 +229,126 @@
   --rgb-violet: 96, 92, 214;
   --rgb-mint: 20, 127, 70;
 }
+
+/* ============================================================
+   Material 3: тональные роли + переопределение старых токенов.
+   ============================================================ */
+:root {
+  color-scheme: dark;
+  --m3-surface: #101317;
+  --m3-surface-container-low: #181B20;
+  --m3-surface-container: #1D2127;
+  --m3-surface-container-high: #22272E;
+  --m3-on-surface: #E5E7EB;
+  --m3-on-surface-variant: #A9B1BD;
+  --m3-outline: #5A626D;
+  --m3-outline-variant: #343A43;
+  --m3-primary: #4C8DFF;
+  --m3-on-primary: #FFFFFF;
+  --m3-primary-container: #1E3A5F;
+  --m3-on-primary-container: #D6E3FF;
+  --m3-secondary-container: #26313F;
+  --m3-on-secondary-container: #D6E3FF;
+  --m3-error: #FFB4AB;
+  --m3-on-error: #690005;
+  --m3-error-container: #5C1A17;
+  --m3-on-error-container: #FFDAD6;
+
+  --color-background: var(--m3-surface);
+  --color-surface: var(--m3-surface-container-low);
+  --color-surface-raised: var(--m3-surface-container);
+  --color-surface-hover: var(--m3-surface-container-high);
+  --color-accent: var(--m3-primary);
+  --color-accent-light: #A9C7FF;
+  --color-accent-soft: rgba(76, 141, 255, 0.16);
+  --color-text: var(--m3-on-surface);
+  --color-muted: var(--m3-on-surface-variant);
+  --color-faint: #7C8592;
+  --color-border: var(--m3-outline-variant);
+  --color-border-accent: var(--m3-outline);
+  --color-on-accent: var(--m3-on-primary);
+  --rgb-accent: 76, 141, 255;
+  --rgb-accent-light: 76, 141, 255;
+  --rgb-muted: 169, 177, 189;
+  --rgb-error: 255, 180, 171;
+  --rgb-success: 129, 201, 149;
+  --rgb-warning: 255, 209, 128;
+  --rgb-card-glow: 30, 58, 95;
+  --rgb-canvas-glow: 30, 58, 95;
+  --color-card-muted: var(--m3-surface-container);
+  --color-nav-background: #1A1E24;
+  --color-hero-start: var(--m3-surface-container-high);
+  --color-hero-end: var(--m3-surface-container);
+  --color-hero-text: var(--m3-on-surface-variant);
+  --color-input-background: #14171C;
+  --color-placeholder: #7C8592;
+  --color-segmented-background: var(--m3-surface-container);
+  --color-segmented-active: var(--m3-surface-container-high);
+  --color-notice-text: var(--m3-on-surface);
+  --color-notice-warning-text: #FFE0A8;
+  --color-notice-error-text: var(--m3-on-error-container);
+  --color-notice-success-text: #C8F0D4;
+  --gradient-accent: linear-gradient(135deg, var(--m3-primary), var(--m3-primary));
+  --shadow-card: none;
+  --shadow-accent: none;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --m3-surface: #F9FAFC;
+  --m3-surface-container-low: #FFFFFF;
+  --m3-surface-container: #F1F4F9;
+  --m3-surface-container-high: #E9EDF4;
+  --m3-on-surface: #1B1F24;
+  --m3-on-surface-variant: #5C6470;
+  --m3-outline: #747B86;
+  --m3-outline-variant: #C6CBD4;
+  --m3-primary: #1B62C9;
+  --m3-on-primary: #FFFFFF;
+  --m3-primary-container: #D6E3FF;
+  --m3-on-primary-container: #001B3E;
+  --m3-secondary-container: #E1E7F2;
+  --m3-on-secondary-container: #1B1F24;
+  --m3-error: #B3261E;
+  --m3-on-error: #FFFFFF;
+  --m3-error-container: #F9DEDC;
+  --m3-on-error-container: #410E0B;
+
+  --color-background: var(--m3-surface);
+  --color-surface: var(--m3-surface-container-low);
+  --color-surface-raised: var(--m3-surface-container);
+  --color-surface-hover: var(--m3-surface-container-high);
+  --color-accent: var(--m3-primary);
+  --color-accent-light: var(--m3-primary);
+  --color-accent-soft: rgba(27, 98, 201, 0.1);
+  --color-text: var(--m3-on-surface);
+  --color-muted: var(--m3-on-surface-variant);
+  --color-faint: #717A87;
+  --color-border: var(--m3-outline-variant);
+  --color-border-accent: var(--m3-outline);
+  --color-on-accent: var(--m3-on-primary);
+  --rgb-accent: 27, 98, 201;
+  --rgb-accent-light: 27, 98, 201;
+  --rgb-muted: 92, 100, 112;
+  --rgb-error: 179, 38, 30;
+  --rgb-success: 32, 122, 70;
+  --rgb-warning: 138, 92, 0;
+  --rgb-card-glow: 214, 227, 255;
+  --rgb-canvas-glow: 214, 227, 255;
+  --color-card-muted: var(--m3-surface-container);
+  --color-nav-background: #FFFFFF;
+  --color-hero-start: var(--m3-surface-container);
+  --color-hero-end: var(--m3-surface-container-low);
+  --color-hero-text: var(--m3-on-surface-variant);
+  --color-input-background: #FFFFFF;
+  --color-placeholder: #717A87;
+  --color-segmented-background: var(--m3-surface-container);
+  --color-segmented-active: #FFFFFF;
+  --color-notice-text: var(--m3-on-surface);
+  --color-notice-warning-text: #6B4E00;
+  --color-notice-error-text: var(--m3-on-error-container);
+  --color-notice-success-text: #1D5C36;
+  --gradient-accent: linear-gradient(135deg, var(--m3-primary), var(--m3-primary));
+  --shadow-card: none;
+  --shadow-accent: none;
+}

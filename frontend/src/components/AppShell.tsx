@@ -38,7 +38,8 @@ export function AppShell({ user, role, activeTab, onNavigate, children, adminEna
     if (!nav || !element) return;
     const navRect = nav.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
-    setLens({ x: rect.left - navRect.left, width: rect.width });
+    const width = Math.min(64, Math.max(32, rect.width - 16));
+    setLens({ x: rect.left - navRect.left + (rect.width - width) / 2, width });
   };
 
   useLayoutEffect(() => {
