@@ -6,7 +6,8 @@ from app.bot import texts
 from app.db_types import utcnow
 from app.models import TrackingLink, User
 from app.services import tracking as tracking_service
-from app.services.tracking import TrackingWorker, extract_status_text
+from app.services.tracking import (TrackingWorker, api_urls, extract_api_status, extract_status_text,
+                                   track_kind)
 
 
 def fast_provider(monkeypatch, status="", ok=False):
@@ -105,6 +106,27 @@ def test_extract_status_from_html_and_json():
     assert extract_status_text(html) == "Доставлен получателю"
     assert extract_status_text('{"data": {"status_name": "На складе"}}') == "На складе"
     assert extract_status_text("<html><body>Ничего нет</body></html>") == ""
+    not_found = ("<html><body>There was an unexpected error (type=Not Found, status=404). "
+                 "Parcel with trackCode - DP1 not found</body></html>")
+    assert extract_status_text(not_found) == "Трек-номер не найден в системе Добропоста"
+
+
+def test_dobropost_api_urls_and_kind(settings):
+    assert track_kind("DBRPST123456") == "parcel"
+    assert track_kind("dbRpStABC") == "parcel"
+    assert track_kind("CN123456789") == "shipment"
+    urls = api_urls("DBRPST 12/34", settings)
+    assert urls[0].startswith("https://api.dobropost.com/api/tracking/parcel?key=")
+    assert "trackCode=DBRPST%2012%2F34" in urls[0]
+    assert any("api-dobropost-com.translate.goog" in url for url in urls)
+
+
+def test_extract_api_status_shapes():
+    assert extract_api_status({"status": "В пути"}) == "В пути"
+    assert extract_api_status({"data": {"statusName": "На складе"}}) == "На складе"
+    assert extract_api_status({"checkpoints": [{"status": "Ожидает отправки"}, {"name": "Доставлен"}]}) == "Доставлен"
+    assert extract_api_status({"trackingNumber": "DBRPST1", "checkpoints": ["Принят", "В пути"]}) == "В пути"
+    assert extract_api_status({"unrelated": 1}) == ""
 
 
 async def test_external_tracking_texts(app, settings, client, auth_headers, monkeypatch):

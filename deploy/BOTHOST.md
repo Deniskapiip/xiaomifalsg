@@ -46,7 +46,7 @@ Bothost сам добавляет `BOT_TOKEN`, `DOMAIN`, `PORT`, `BOT_ID`, `USER
 | `WEBHOOK_SECRET_TOKEN` | необязательно: сгенерируется автоматически при пустом/невалидном значении |
 | `OWNER_USERNAME` / `MANAGER_USERNAME` / `CHANNEL_USERNAME` | публичные контакты |
 | `REVIEW_USERNAME` | группа/канал отзывов (по умолчанию `taojiotziv`) |
-| `TRACKING_REFRESH_HOURS` / `DOBROPOST_TRACKING_URL` | автообновление внешних трек-номеров (по умолчанию 6 ч) и шаблон URL трекинга с `{track}`; пусто — стандартные варианты Добропоста |
+| `TRACKING_REFRESH_HOURS` / `DOBROPOST_API_KEY` / `DOBROPOST_API_BASE` / `DOBROPOST_PROXY_BASE` | автообновление внешних трек-номеров (по умолчанию 6 ч) и официальный трекинг-API Добропоста; ключ публичный, прокси — fallback, если API недоступен с хостинга |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` |
 | `INSURANCE_PERCENT` / `PACKING_FEE_RUB` / `PHOTO_REPORT_FEE_RUB` | цены доп. услуг: 10% страховки (только на тарифах с флажком страховки), 299 ₽ за коробку обрешётки, 150 ₽ фотоотчёт |
 

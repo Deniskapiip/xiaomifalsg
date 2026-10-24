@@ -67,8 +67,13 @@ class Settings(BaseSettings):
     review_username: str = "taojiotziv"
     # Автообновление внешних трек-номеров (Добропост): раз в N часов.
     tracking_refresh_hours: int = Field(default=6, ge=1, le=72)
-    # Шаблон URL трекинга с {track}. Пусто — используются стандартные варианты
-    # tracking.dobropost.com. Значение задаётся, когда известен точный формат.
+    # Публичный ключ из трекинг-страницы Добропоста; секрета не содержит, но меняется вместе с сайтом.
+    dobropost_api_key: str = "b4538f528e7a957bd734fdeeab12d143"
+    dobropost_api_base: str = "https://api.dobropost.com/api/tracking"
+    # Fallback через прокси Google Translate: нужен, когда api.dobropost.com
+    # недоступен с хостинга напрямую (домен может блокировать зарубежные IP).
+    dobropost_proxy_base: str = "https://api-dobropost-com.translate.goog/api/tracking"
+    # Шаблон URL трекинга с {track}. Пусто — используются официальный API и стандартные варианты.
     dobropost_tracking_url: str = ""
     insurance_percent: Decimal = Field(default=Decimal("10"), ge=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2)
     packing_fee_rub: int = Field(default=299, ge=0, le=1_000_000_000)

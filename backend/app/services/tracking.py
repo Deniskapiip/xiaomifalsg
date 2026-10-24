@@ -1,9 +1,11 @@
 """Отслеживание внешних трек-номеров (Добропост).
 
-Добропост не отдаёт публичную документацию API, а его домены могут быть
-недоступны с хостинга, поэтому источник статуса настраиваемый: шаблон URL
-в DOBROPOST_TRACKING_URL (с {track}) или стандартные варианты ниже.
-Обновление выполняется фоновой задачей раз в TRACKING_REFRESH_HOURS часов.
+Публичный трекинг Добропоста использует API:
+  https://api.dobropost.com/api/tracking/parcel?key=<key>&trackCode=<код>   — коды DBRPST…
+  https://api.dobropost.com/api/tracking/shipment?key=<key>&trackCode=<код> — остальные
+Ключ публичный (взят из JS трекинг-страницы), поэтому хранится как обычная настройка.
+Если api.dobropost.com недоступен с хостинга, используем прокси Google Translate
+(api-dobropost-com.translate.goog), который отдаёт тот же ответ.
 """
 
 import asyncio
@@ -22,7 +24,10 @@ from app.models import TrackingLink, User
 
 log = logging.getLogger("taoji")
 
-DEFAULT_TEMPLATES = (
+PARCEL_PREFIX = "DBRPST"
+STATUS_KEYS = ("statusName", "status_name", "status", "state", "deliveryStatus", "lastStatus")
+CHECKPOINT_KEYS = ("checkpointStatus", "statusName", "status", "name", "title", "description", "comment")
+LEGACY_TEMPLATES = (
     "https://tracking.dobropost.com/{track}",
     "https://tracking.dobropost.com/?track={track}",
     "https://tracking.dobropost.com/track/{track}",
@@ -37,28 +42,50 @@ USER_AGENT = "TaojiCargo/1.0 (Telegram Mini App tracking)"
 COOLDOWN_MINUTES = 15
 
 
-def tracking_urls(track_number: str, settings) -> list[str]:
+def track_kind(track_number: str) -> str:
+    return "parcel" if track_number.upper().startswith(PARCEL_PREFIX) else "shipment"
+
+
+def api_urls(track_number: str, settings) -> list[str]:
+    """Official API first, then the Google-Translate proxy fallback, then legacy pages."""
+    kind = track_kind(track_number)
+    key = getattr(settings, "dobropost_api_key", "") or ""
+    encoded = quote(track_number, safe="")
+    urls = []
+    base = (getattr(settings, "dobropost_api_base", "") or "").rstrip("/")
+    if base:
+        urls.append(f"{base}/{kind}?key={quote(key, safe='')}&trackCode={encoded}")
+    proxy = (getattr(settings, "dobropost_proxy_base", "") or "").rstrip("/")
+    if proxy:
+        urls.append(f"{proxy}/{kind}?key={quote(key, safe='')}&trackCode={encoded}"
+                    "&_x_tr_sl=ru&_x_tr_tl=en&_x_tr_hl=ru")
     template = (getattr(settings, "dobropost_tracking_url", "") or "").strip()
-    templates = (template,) if "{track}" in template else DEFAULT_TEMPLATES
-    return [item.replace("{track}", quote(track_number, safe="")) for item in templates]
+    if "{track}" in template:
+        urls.append(template.replace("{track}", encoded))
+    else:
+        urls.extend(item.replace("{track}", encoded) for item in LEGACY_TEMPLATES)
+    return urls
 
 
 def extract_status_text(payload: str, content_type: str = "") -> str:
     raw = payload.strip()
     if not raw:
         return ""
-    if "json" in content_type or raw.startswith("{"):
+    if "json" in content_type or raw[:1] in "{[":
         try:
             data = json.loads(raw)
         except ValueError:
             data = None
         if data is not None:
-            found = _find_status_in_json(data)
+            found = extract_api_status(data)
             if found:
                 return found[:200]
     text = re.sub(r"<script.*?</script>|<style.*?</style>", " ", raw, flags=re.IGNORECASE | re.DOTALL)
     text = re.sub(r"<[^>]+>", " ", text)
     text = html.unescape(re.sub(r"\s+", " ", text)).strip()
+    found = _not_found_text(text)
+    if found:
+        return found
     for pattern in STATUS_PATTERNS:
         match = pattern.search(text)
         if match:
@@ -66,37 +93,71 @@ def extract_status_text(payload: str, content_type: str = "") -> str:
     return ""
 
 
-def _find_status_in_json(node) -> str:
-    keys = {"status", "status_text", "statustext", "status_name", "state", "operation", "stage"}
-    if isinstance(node, dict):
-        for key, value in node.items():
-            if str(key).lower() in keys and isinstance(value, str) and value.strip():
+def _not_found_text(text: str) -> str:
+    lowered = text.lower()
+    if "not found" in lowered or "не найден" in lowered:
+        return "Трек-номер не найден в системе Добропоста"
+    return ""
+
+
+def extract_api_status(data) -> str:
+    """Extract the latest status from the DobroPost API response (shape is not documented)."""
+    if isinstance(data, dict):
+        for key in STATUS_KEYS:
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
                 return value.strip()
-        for value in node.values():
-            found = _find_status_in_json(value)
+        checkpoints = _first_list(data, ("checkpoints", "checkpointsList", "history", "events", "statuses"))
+        if checkpoints:
+            latest = checkpoints[-1] if isinstance(checkpoints[-1], dict) else None
+            if latest is None:
+                for item in reversed(checkpoints):
+                    if isinstance(item, str) and item.strip():
+                        return item.strip()
+            else:
+                for key in CHECKPOINT_KEYS:
+                    value = latest.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+        for value in data.values():
+            found = extract_api_status(value)
             if found:
                 return found
-    if isinstance(node, list):
-        for value in node:
-            found = _find_status_in_json(value)
+    if isinstance(data, list):
+        for value in reversed(data):
+            found = extract_api_status(value)
             if found:
                 return found
     return ""
 
 
+def _first_list(data: dict, keys) -> list | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, list) and value:
+            return value
+    return None
+
+
 async def fetch_status(track_number: str, settings) -> tuple[str, bool]:
-    """Fetch the carrier page. Returns (status text, success flag)."""
-    async with httpx.AsyncClient(timeout=httpx.Timeout(6.0), follow_redirects=True,
+    """Fetch the carrier status. Returns (status text, success flag)."""
+    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0), follow_redirects=True,
                                  headers={"User-Agent": USER_AGENT}) as client:
-        for url in tracking_urls(track_number, settings):
+        for url in api_urls(track_number, settings):
             try:
                 response = await client.get(url)
             except httpx.HTTPError:
                 continue
+            if response.status_code == 404:
+                return "Трек-номер не найден в системе Добропоста", True
             if response.status_code != 200 or not response.text.strip():
                 continue
             status = extract_status_text(response.text, response.headers.get("content-type", ""))
-            return status, bool(status)
+            if status:
+                return status, True
+            # Диагностика для хостинга: ответ пришёл, но разобрать статус не удалось.
+            log.warning("tracking_unparsed status=%s body=%s", response.status_code,
+                        response.text[:300].replace("\n", " "))
     return "", False
 
 
