@@ -129,3 +129,24 @@ def test_status_mapping_and_advance_rules():
     assert should_advance("processing", Status.delivered) is False
     assert should_advance("delivered", Status.delivered) is False
     assert should_advance("cancelled", Status.delivered) is False
+
+
+def test_real_dobropost_statuses_mapping():
+    cases = {
+        "На комплектации": Status.purchased,
+        "На взвешивании": Status.purchased,
+        "Ожидает оплату": Status.awaiting_delivery_payment,
+        "Ожидает отправку": Status.purchased,
+        "Подготовлена к добавлению в реестр": Status.purchased,
+        "Добавлена в реестр № RU-935": Status.purchased,
+        "На таможне в Китае": Status.cn_customs,
+        "Поступила на таможню в стране назначения": Status.ru_customs,
+        "Начало таможенного оформления": Status.ru_customs,
+        "Таможенное оформление посылки завершено": Status.ru_customs,
+        "Подготовлено к отгрузке в доставку последней мили": Status.to_recipient,
+        "Покинула таможню и передана на доставку по РФ": Status.to_recipient,
+        "Посылка доставлена получателю": Status.delivered,
+        "В пути": None,
+    }
+    for text, expected in cases.items():
+        assert map_provider_status(text) == expected, text

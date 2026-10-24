@@ -26,7 +26,8 @@ log = logging.getLogger("taoji")
 
 PARCEL_PREFIX = "DBRPST"
 STATUS_KEYS = ("statusName", "status_name", "status", "state", "deliveryStatus", "lastStatus")
-CHECKPOINT_KEYS = ("checkpointStatus", "statusName", "status", "name", "title", "description", "comment")
+CHECKPOINT_KEYS = ("statusRUName", "statusName", "status_text", "statusText", "status", "name", "title",
+                   "description", "comment")
 LEGACY_TEMPLATES = (
     "https://tracking.dobropost.com/{track}",
     "https://tracking.dobropost.com/?track={track}",
@@ -101,24 +102,32 @@ def _not_found_text(text: str) -> str:
 
 
 def extract_api_status(data) -> str:
-    """Extract the latest status from the DobroPost API response (shape is not documented)."""
+    """Extract the latest status from the DobroPost API response.
+
+    Реальный ответ: {"checkpoints": [{"date": "...", "statusName": "...",
+    "statusRUName": "Посылка доставлена получателю", "statusCategoryId": 11}, ...]}
+    Массив отсортирован от свежего к старому, поэтому берём первый чекпоинт
+    (и на всякий случай сортируем по дате, если она есть).
+    """
     if isinstance(data, dict):
-        for key in STATUS_KEYS:
-            value = data.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
         checkpoints = _first_list(data, ("checkpoints", "checkpointsList", "history", "events", "statuses"))
         if checkpoints:
-            latest = checkpoints[-1] if isinstance(checkpoints[-1], dict) else None
-            if latest is None:
-                for item in reversed(checkpoints):
-                    if isinstance(item, str) and item.strip():
-                        return item.strip()
-            else:
+            items = [item for item in checkpoints if isinstance(item, dict)]
+            if items:
+                if any(item.get("date") for item in items):
+                    items.sort(key=lambda item: str(item.get("date") or ""), reverse=True)
+                latest = items[0]
                 for key in CHECKPOINT_KEYS:
                     value = latest.get(key)
                     if isinstance(value, str) and value.strip():
                         return value.strip()
+            for item in reversed(checkpoints):
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+        for key in STATUS_KEYS:
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
         for value in data.values():
             found = extract_api_status(value)
             if found:

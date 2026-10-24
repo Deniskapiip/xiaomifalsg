@@ -31,17 +31,29 @@ AUTO_ZONE = {
 
 
 def map_provider_status(raw: str) -> Status | None:
-    """Map a DobroPost status phrase to our order status (conservative)."""
+    """Map a DobroPost status phrase to our order status (conservative).
+
+    Реальные русские статусы Добропоста (пример доставленной посылки):
+    «Посылка доставлена получателю», «Покинула таможню и передана на доставку по РФ»,
+    «Подготовлено к отгрузке в доставку последней мили», «Таможенное оформление посылки завершено»,
+    «Начало таможенного оформления», «Поступила на таможню в стране назначения»,
+    «На таможне в Китае», «Ожидает оплату», «На складе», «Выкуплен».
+    """
     text = (raw or "").lower()
     if any(word in text for word in ("доставлен", "получен", "вручен", "выдан", "delivered")):
         return Status.delivered
-    if any(word in text for word in ("курьер", "в пути до получателя", "out for delivery", "доставка")):
+    if any(word in text for word in ("передана на доставку", "доставку последней мили", "курьер",
+                                     "в пути до получателя", "out for delivery", "left_customs",
+                                     "last_mile")):
         return Status.to_recipient
-    if "таможн" in text:
-        return Status.ru_customs if "росси" in text else Status.cn_customs
+    if "тамож" in text:
+        return Status.cn_customs if any(word in text for word in ("кита", "china")) else Status.ru_customs
+    if any(word in text for word in ("ожидает оплату", "awaiting_payment")):
+        return Status.awaiting_delivery_payment
     if any(word in text for word in ("на складе", "склад", "warehouse", "прибыл")):
         return Status.at_cn_warehouse
-    if any(word in text for word in ("выкуп", "куплен", "purchased")):
+    if any(word in text for word in ("выкуп", "куплен", "purchased", "ожидает отправк", "реестр",
+                                     "комплектац", "взвешиван")):
         return Status.purchased
     if any(word in text for word in ("оформл", "создан", "принят", "processing")):
         return Status.processing

@@ -124,9 +124,20 @@ def test_dobropost_api_urls_and_kind(settings):
 def test_extract_api_status_shapes():
     assert extract_api_status({"status": "В пути"}) == "В пути"
     assert extract_api_status({"data": {"statusName": "На складе"}}) == "На складе"
-    assert extract_api_status({"checkpoints": [{"status": "Ожидает отправки"}, {"name": "Доставлен"}]}) == "Доставлен"
-    assert extract_api_status({"trackingNumber": "DBRPST1", "checkpoints": ["Принят", "В пути"]}) == "В пути"
+    # Добропост отдаёт чекпоинты от свежего к старому: берём первый.
+    assert extract_api_status({"checkpoints": [{"status": "Доставлен"}, {"status": "Ожидает отправки"}]}) == "Доставлен"
+    assert extract_api_status({"checkpoints": [{"date": "2026-01-01T00:00:00+03:00", "statusRUName": "Старый"},
+                                               {"date": "2026-02-01T00:00:00+03:00", "statusRUName": "Новый"}]}) == "Новый"
+    assert extract_api_status({"checkpoints": ["Принят", "В пути"]}) == "В пути"
     assert extract_api_status({"unrelated": 1}) == ""
+
+
+def test_real_dobropost_delivered_response():
+    import json
+    from pathlib import Path
+    payload = json.loads((Path(__file__).parent / "data" / "dobropost_parcel.json").read_text(encoding="utf-8"))
+    assert len(payload["checkpoints"]) == 14
+    assert extract_status_text(json.dumps(payload)) == "Посылка доставлена получателю"
 
 
 async def test_external_tracking_texts(app, settings, client, auth_headers, monkeypatch):
