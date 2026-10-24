@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AppConfig, Navigate, Order, OrderPage, User } from '../api/types';
 import { post, request } from '../api/client';
 import { Icon } from '../components/Icon';
+import { Confetti } from '../components/Confetti';
 import { readStored, userStorageKey, writeStored } from '../lib/storage';
 import { money } from '../lib/format';
 import { inTelegram, openTelegram, requestWriteAccess, supports, webApp } from '../lib/telegram';
@@ -88,6 +89,7 @@ export function OrderSuccess({ order, config, user, onNavigate }: {
 
   return (
     <div className="page page-stack">
+      <Confetti />
       <header className="success-header"><span className="success-mark" aria-hidden="true"><Icon name="check" size={42} /></span><span className="eyebrow">СЛЕДУЮЩИЙ ШАГ — ПОДТВЕРЖДЕНИЕ</span><h1>Заказ принят</h1><span className="success-number"><Icon name="package" size={18} />{order.public_no}</span><p>Менеджер @{manager} свяжется с вами для подтверждения деталей и оплаты выкупа.</p></header>
 
       <section className="card success-next"><h2>Что дальше</h2><p>Можно написать менеджеру сейчас. Номер заказа уже будет в сообщении — останется уточнить детали.</p>{order.extras_total_rub !== '0' && <p className="field-hint">Доп. услуги: {money(order.extras_total_rub)}. К оплате за выкуп с услугами: {money(order.total_with_extras_rub)}.</p>}<button className="button button--primary button--block" type="button" onClick={contactManager}><Icon name="send" size={19} />Написать менеджеру</button>{contactFailed && <p className="field-error" role="alert">Не удалось открыть чат. Найдите менеджера @{manager} в Telegram и отправьте номер {order.public_no}.</p>}</section>

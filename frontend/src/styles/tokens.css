@@ -352,3 +352,41 @@
   --shadow-card: none;
   --shadow-accent: none;
 }
+
+/* ============================================================
+   Обновлённая палитра: глубокий синий + бирюза + тёплый акцент.
+   ============================================================ */
+:root {
+  --m3-primary: #5B9DFF;
+  --m3-on-primary: #002E6B;
+  --m3-primary-container: #234A7A;
+  --m3-on-primary-container: #D8E7FF;
+  --m3-secondary: #7FE0C3;
+  --m3-on-secondary: #00382C;
+  --m3-secondary-container: #124C40;
+  --m3-on-secondary-container: #A8F2DE;
+  --m3-tertiary: #FFC58A;
+  --m3-on-tertiary: #4A2600;
+  --m3-tertiary-container: #5C3A12;
+  --m3-on-tertiary-container: #FFE0BF;
+  --rgb-accent: 91, 157, 255;
+  --rgb-accent-light: 91, 157, 255;
+  --color-accent-light: #A9C7FF;
+}
+:root[data-theme='light'] {
+  --m3-primary: #1B5FD6;
+  --m3-on-primary: #FFFFFF;
+  --m3-primary-container: #D9E5FF;
+  --m3-on-primary-container: #001A41;
+  --m3-secondary: #00796B;
+  --m3-on-secondary: #FFFFFF;
+  --m3-secondary-container: #C8F1E6;
+  --m3-on-secondary-container: #00251F;
+  --m3-tertiary: #B4540A;
+  --m3-on-tertiary: #FFFFFF;
+  --m3-tertiary-container: #FFE0C7;
+  --m3-on-tertiary-container: #3A1A00;
+  --rgb-accent: 27, 95, 214;
+  --rgb-accent-light: 27, 95, 214;
+  --color-accent-light: #1B5FD6;
+}

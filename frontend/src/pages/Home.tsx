@@ -4,6 +4,7 @@ import { OrderCard } from '../components/OrderCard';
 import { EmptyState, ErrorState, Skeleton } from '../components/UiStates';
 import { Icon } from '../components/Icon';
 import { StatusBadge } from '../components/StatusBadge';
+import { Particles } from '../components/Particles';
 import { decimalNumber, shortDateMsk } from '../lib/format';
 import { openTelegram } from '../lib/telegram';
 
@@ -32,6 +33,7 @@ export function Home({ config, user, onNavigate }: { config: AppConfig; user: Us
   return (
     <div className="page page-stack">
       <section className="hero card card--glow">
+        <Particles />
         <div className="hero-copy">
           <p className="eyebrow">ИЗ КИТАЯ — К ВАМ</p>
           <h1 className="page-title home-greeting">{greeting}, {user.first_name || 'рады вас видеть'}!</h1>
