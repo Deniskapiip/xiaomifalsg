@@ -36,6 +36,9 @@ export DEV_MODE=false
 # видит scheme=http и отвечает 400 HTTPS_REQUIRED. Панельное значение
 # (обычно 127.0.0.1,::1) не подходит, поэтому задаём приватные сети Docker.
 export FORWARDED_ALLOW_IPS="127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,::ffff:0:0/96"
+# Some-прокси Bothost может вырезать forwarding-заголовки: публичного порта у
+# контейнера нет, вход только через HTTPS-прокси платформы, поэтому явно разрешаем.
+export TRUST_PROXY_HTTPS=true
 
 # 3. SQLite — только на постоянном диске Bothost. PostgreSQL сохраняется, если задан явно.
 case "${DATABASE_URL:-}" in

@@ -15,11 +15,16 @@ router = APIRouter(tags=["Конфигурация и расчёт"])
 @router.get("/health")
 async def health(request: Request, db: AsyncSession = Depends(session)):
     from sqlalchemy import text
+    from app.main import is_secure_request
     await db.execute(text("SELECT 1"))
     # Диагностика для хостинга: видно, как приложение получает запрос через прокси.
     proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    interesting = ("x-forwarded-proto", "x-forwarded-for", "x-forwarded-host", "x-real-ip",
+                   "x-forwarded-ssl", "forwarded", "cf-connecting-ip", "host")
+    proxy_headers = {name: value for name, value in request.headers.items() if name.lower() in interesting}
     return {"ok": True, "service": "taoji-cargo", "scheme": request.url.scheme,
-            "forwarded_proto": proto or None}
+            "forwarded_proto": proto or None, "client": request.client.host if request.client else None,
+            "secure": is_secure_request(request, request.app.state.settings), "proxy_headers": proxy_headers}
 
 
 @router.get("/config", response_model=ConfigOut, dependencies=[Depends(current_user)])

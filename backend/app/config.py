@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     init_data_max_age_seconds: int = Field(default=86400, ge=60, le=86400)
     webhook_path_secret: str = ""
     webhook_secret_token: str = ""
+    # Хостинг (Bothost, Caddy, Cloudflare) завершает TLS и передаёт в контейнер HTTP.
+    # Флаг явно подтверждает, что публичный вход только через HTTPS-прокси, поэтому
+    # production-проверка схемы не должна отклонять такие запросы. По умолчанию выключен.
+    trust_proxy_https: bool = False
     host: str = "127.0.0.1"
     forwarded_allow_ips: str = "127.0.0.1,::1"
     port: int = Field(default=8000, ge=1, le=65535)

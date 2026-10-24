@@ -21,7 +21,7 @@ from app.startup_errors import StartupError, bot_startup_error
 log = logging.getLogger("taoji")
 
 
-def is_secure_request(request: Request) -> bool:
+def is_secure_request(request: Request, settings: Settings) -> bool:
     """True when the request reached the app over HTTPS or through a trusted proxy.
 
     Hosting platforms (Bothost, Caddy, Cloudflare) terminate TLS and forward plain
@@ -29,7 +29,13 @@ def is_secure_request(request: Request) -> bool:
     connection came from the private proxy network or carries X-Forwarded-Proto.
     Such requests must not be rejected by the production HTTPS check. Direct
     public access still has to use https.
+
+    Some platforms strip forwarding headers entirely. For those the operator
+    explicitly sets TRUST_PROXY_HTTPS=true: the container port is not published,
+    so the only path to the app is the platform TLS proxy.
     """
+    if settings.trust_proxy_https:
+        return True
     if request.url.scheme == "https":
         return True
     proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
@@ -117,7 +123,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             if request.headers.get("content-length", "0").isdigit() and int(request.headers.get("content-length", "0")) > 131072:
                 response = JSONResponse({"code": "BODY_TOO_LARGE", "message": "Запрос слишком большой"}, status_code=413)
-            elif settings.env == "production" and not is_secure_request(request):
+            elif settings.env == "production" and not is_secure_request(request, settings):
                 response = JSONResponse({"code": "HTTPS_REQUIRED", "message": "Требуется защищённое HTTPS-соединение"}, status_code=400)
             else:
                 response = await call_next(request)
