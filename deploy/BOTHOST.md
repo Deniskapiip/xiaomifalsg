@@ -25,7 +25,7 @@ Bothost запускает проект как **один Docker-контейн�
 4. В «Дополнительных настройках» включите:
    - «Использовать собственный Dockerfile» (файл `Dockerfile` уже в корне);
    - «Использовать домен» (HTTPS для Mini App и webhook);
-   - внутренний порт = значение `PORT`, которое Bothost показывает в переменных окружения бота (обычно `3000`; приложение читает `PORT` само).
+   - внутренний порт: `8000`, если Bothost не передал `PORT`. Фактический порт entrypoint пишет в runtime-лог строкой `[bothost] … PORT=…`; значение в панели должно совпадать с ним.
 5. Добавьте переменные окружения из раздела 2.
 6. Запустите деплой и дождитесь статуса **Up** (не «restarting»).
 7. Откройте `https://<домен>/api/health` — должно вернуться `{"ok":true,"service":"taoji-cargo"}`.
@@ -39,18 +39,18 @@ Bothost сам добавляет `BOT_TOKEN`, `DOMAIN`, `PORT`, `BOT_ID`, `USER
 
 | Переменная | Значение |
 |---|---|
-| `JWT_SECRET` | `secrets.token_urlsafe(48)` — сгенерируйте один раз |
+| `JWT_SECRET` | необязательно: если пусто/короче 32 байт — entrypoint сгенерирует и сохранит в `/app/data/.taoji-secrets` |
 | `OWNER_IDS` | числовые Telegram ID владельцев через запятую |
 | `MANAGER_IDS` | числовые ID менеджеров (можно пусто) |
-| `WEBHOOK_PATH_SECRET` | случайная строка 32–128 символов `A-Z a-z 0-9 _ -` |
-| `WEBHOOK_SECRET_TOKEN` | вторая случайная строка того же формата |
+| `WEBHOOK_PATH_SECRET` | необязательно: сгенерируется автоматически при пустом/невалидном значении |
+| `WEBHOOK_SECRET_TOKEN` | необязательно: сгенерируется автоматически при пустом/невалидном значении |
 | `OWNER_USERNAME` / `MANAGER_USERNAME` / `CHANNEL_USERNAME` | публичные контакты |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` |
 | `INSURANCE_PERCENT` / `PACKING_FEE_RUB` / `PHOTO_REPORT_FEE_RUB` | цены доп. услуг (по умолчанию 2 / 300 / 150) |
 
 Опционально: `DATABASE_URL` (по умолчанию `sqlite+aiosqlite:////app/data/taoji.db`), `WEBAPP_URL` (по умолчанию `https://$DOMAIN`), `ENV`/`BOT_MODE`.
 
-**Не копируйте в панель Bothost свой локальный `.env`.** Значения для Windows-разработки (`HOST=127.0.0.1`, `PORT=8000`, `ENV=development`, `BOT_MODE=polling`, `WEBAPP_URL=https://…ngrok-free.dev`, `DEV_MODE`) на хостинге ломают запуск: дают 502 и открывают мёртвый ngrok-туннель (`ERR_NGROK_3200`). Entrypoint специально принудительно выставляет `HOST=0.0.0.0`, `ENV=production`, `DEV_MODE=false`, `BOT_MODE=webhook`, `WEBAPP_URL=https://$DOMAIN` и SQLite в `/app/data`, поэтому устаревшие значения из локального `.env` больше не мешают.
+**Не копируйте в панель Bothost свой локальный `.env`.** Значения для Windows-разработки (`HOST=127.0.0.1`, `PORT=8000`, `ENV=development`, `BOT_MODE=polling`, `WEBAPP_URL=https://…ngrok-free.dev`, `DEV_MODE`) на хостинге ломают запуск: дают 502 и открывают мёртвый ngrok-туннель (`ERR_NGROK_3200`). Entrypoint специально принудительно выставляет `HOST=0.0.0.0`, `ENV=production`, `DEV_MODE=false`, `BOT_MODE=webhook`, `WEBAPP_URL=https://$DOMAIN` и SQLite в `/app/data`, поэтому устаревшие значения из локального `.env` больше не мешают. Секреты `JWT_SECRET`, `WEBHOOK_PATH_SECRET`, `WEBHOOK_SECRET_TOKEN` при отсутствии или неверном формате генерируются автоматически и лежат в `/app/data/.taoji-secrets`; в лог они не печатаются.
 
 Секреты можно сгенерировать локально:
 
@@ -90,7 +90,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 | Все ответы `400 HTTPS_REQUIRED` | Прокси Bothost не в доверенных: добавьте его подсеть в `FORWARDED_ALLOW_IPS` |
 | `404` на webhook | Не включён домен, либо секрет в пути не совпал: приложение само регистрирует webhook при старте, проверьте `WEBHOOK_PATH_SECRET`/`WEBHOOK_SECRET_TOKEN` |
 | `DATABASE_NOT_READY` | Нет доступа к `/app/data` или миграции не выполнились; посмотрите логи старта |
-| `Проверьте .env: ...` | Не заданы `JWT_SECRET`, `OWNER_IDS`, секреты webhook |
+| `Проверьте .env: ...` | Проверьте `OWNER_IDS` и формат остальных переменных; секреты теперь генерируются автоматически |
 | База обнулилась после рестарта | Тариф без постоянного хранилища или база лежит вне `/app/data` |
 | `Killed` / код 137 | Не хватает RAM (256 МБ). Возьмите Basic (1 ГБ) и не запускайте второй экземпляр |
 | `403` в админке | Telegram ID отсутствует в `OWNER_IDS`/`MANAGER_IDS`; после правки env перезапустите бота |
