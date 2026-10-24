@@ -424,3 +424,140 @@ dl.breakdown { margin: 8px 0 0; }
 /* Official logo tile fills the whole badge (square brand tiles, no extra ring). */
 .platform-mark img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .platform-mark--logo { background: transparent; box-shadow: none; }
+
+/* ============================================================
+   Liquid glass layer: стеклянные кнопки, иконки, меню и карточки.
+   Палитра не меняется — только прозрачность, блики и глубина.
+   ============================================================ */
+.button {
+  position: relative; overflow: hidden; isolation: isolate; border-radius: 14px;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease,
+              background-color var(--motion-fast) ease, border-color var(--motion-fast) ease, filter var(--motion-fast) ease;
+}
+.button::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.05) 44%, transparent 72%);
+  opacity: 0.6;
+}
+.button::after {
+  content: ''; position: absolute; top: -70%; left: -35%; width: 42%; height: 240%; pointer-events: none; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  transform: rotate(16deg) translateX(-180%);
+  transition: transform 750ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.button:hover:not(:disabled)::after { transform: rotate(16deg) translateX(420%); }
+.button:active:not(:disabled) { transform: translateY(1px) scale(0.994); }
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--rgb-accent-light), 0.32), var(--shadow-accent);
+}
+.button--primary {
+  border-color: rgba(255, 255, 255, 0.22);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 52%), var(--gradient-accent);
+  background-size: 100% 100%, 180% 180%;
+  box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -12px 26px rgba(var(--rgb-accent), 0.32);
+  animation: liquid-gradient 8s ease-in-out infinite;
+}
+.button--primary:hover:not(:disabled) {
+  opacity: 1; transform: translateY(-1px);
+  box-shadow: 0 14px 38px rgba(var(--rgb-accent), 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.44);
+}
+.button--secondary {
+  background: var(--glass-surface); border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--glass-shadow);
+}
+.button--secondary:hover:not(:disabled) {
+  background: var(--glass-surface-strong); border-color: rgba(var(--rgb-accent-light), 0.34); transform: translateY(-1px);
+}
+.button--ghost { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.button--ghost::before, .button--ghost::after { display: none; }
+.button--ghost:hover:not(:disabled) { background: var(--color-accent-soft); }
+.button--danger {
+  background: linear-gradient(180deg, rgba(var(--rgb-error), 0.2), rgba(var(--rgb-error), 0.08));
+  border-color: rgba(var(--rgb-error), 0.34); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.button--danger:hover:not(:disabled) { background: rgba(var(--rgb-error), 0.22); transform: translateY(-1px); }
+
+.icon-button {
+  border-radius: 14px; background: var(--glass-surface); border-color: var(--glass-border);
+  -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 6px 18px rgba(var(--rgb-shadow), 0.16);
+  transition: color var(--motion-fast), background var(--motion-fast), border-color var(--motion-fast),
+              transform var(--motion-fast), box-shadow var(--motion-fast);
+}
+.icon-button:hover:not(:disabled) {
+  background: var(--glass-surface-strong); border-color: rgba(var(--rgb-accent-light), 0.3);
+  transform: translateY(-1px); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 9px 22px rgba(var(--rgb-shadow), 0.2);
+}
+.icon-button:active:not(:disabled) { transform: translateY(0) scale(0.97); }
+
+.chip {
+  background: var(--glass-surface); border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.chip--accent {
+  background: linear-gradient(180deg, rgba(var(--rgb-accent), 0.22), rgba(var(--rgb-accent), 0.1));
+  border-color: rgba(var(--rgb-accent-light), 0.35);
+}
+
+.bottom-nav {
+  background: var(--glass-nav);
+  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 -14px 34px rgba(var(--rgb-shadow), 0.22);
+  border-top-color: transparent;
+}
+.nav-item__icon { transition: transform var(--motion-fast), background var(--motion-fast), box-shadow var(--motion-fast); }
+.nav-item:hover .nav-item__icon { transform: translateY(-1px); }
+.nav-item.is-active .nav-item__icon:not(.nav-item__icon--order) {
+  background: linear-gradient(180deg, rgba(var(--rgb-accent), 0.2), rgba(var(--rgb-accent), 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.card { box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.055); }
+.card--glow { box-shadow: 0 18px 48px rgba(var(--rgb-accent), 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+.contact-card { transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease; }
+.contact-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+
+.input, .textarea, select.input {
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast), background var(--motion-fast);
+}
+.input:focus, .textarea:focus, select.input:focus {
+  border-color: rgba(var(--rgb-accent-light), 0.55);
+  box-shadow: 0 0 0 3px rgba(var(--rgb-accent-light), 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+@keyframes liquid-gradient {
+  0%, 100% { background-position: 0% 40%, 0% 50%; }
+  50% { background-position: 0% 40%, 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button, .icon-button, .contact-card, .nav-item__icon { transition: none !important; }
+  .button--primary { animation: none; }
+  .button::after { display: none; }
+}
+
+/* Дополнительный лоск в тон палитры: свечение выбранных карточек, стеклянные тарифы и сегменты. */
+.hero { box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+.notice:not(.notice--warning):not(.notice--error):not(.notice--success) {
+  background-image: linear-gradient(180deg, rgba(var(--rgb-accent), 0.1), rgba(var(--rgb-accent), 0.04));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.segmented {
+  background: var(--glass-surface); border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%);
+}
+.segmented button.is-active, .segmented button[aria-selected='true'], .segmented button[aria-pressed='true'] {
+  background: var(--glass-surface-strong);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 4px 14px rgba(var(--rgb-shadow), 0.14);
+}
+.tariff-card { transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, border-color var(--motion-fast) ease; }
+.tariff-card:hover { transform: translateY(-2px); }
+.tariff-card.is-selected {
+  box-shadow: 0 14px 38px rgba(var(--rgb-accent), 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.loading-state__brand img { box-shadow: 0 0 60px rgba(var(--rgb-accent), 0.22); }

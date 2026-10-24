@@ -73,8 +73,10 @@ class Settings(BaseSettings):
     # Напоминание об отзыве: одно сообщение клиенту через N часов после «Доставлен».
     review_reminder_enabled: bool = True
     review_reminder_hours: int = Field(default=48, ge=1, le=720)
-    # Автосмена статусов заказа по трек-номеру Добропоста (после «Ожидает оплаты доставки»).
+    # Автосмена статусов заказа по трек-номеру Добропоста.
     order_tracking_enabled: bool = True
+    # При сохранении трека сразу проверяем Добропост (синхронно, коротким таймаутом).
+    tracking_immediate_refresh: bool = True
     # Публичный ключ из трекинг-страницы Добропоста; секрета не содержит, но меняется вместе с сайтом.
     dobropost_api_key: str = "b4538f528e7a957bd734fdeeab12d143"
     dobropost_api_base: str = "https://api.dobropost.com/api/tracking"

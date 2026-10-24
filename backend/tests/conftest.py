@@ -28,7 +28,8 @@ def signed_init_data(settings, tg_id=333, auth_date=None, extra=None):
 @pytest.fixture
 def settings(tmp_path):
     return Settings(_env_file=None, bot_enabled=False, bot_token="123456789:unit-test-not-a-real-bot-token", jwt_secret="unit-test-jwt-secret-at-least-32-bytes-long",
-                    database_url=f"sqlite+aiosqlite:///{tmp_path / 'test.db'}", webapp_url="https://test.example", owner_ids="111", manager_ids="222")
+                    database_url=f"sqlite+aiosqlite:///{tmp_path / 'test.db'}", webapp_url="https://test.example", owner_ids="111", manager_ids="222",
+                    tracking_immediate_refresh=False)
 
 
 @pytest.fixture

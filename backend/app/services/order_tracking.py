@@ -74,10 +74,10 @@ def should_advance(current: str, target: Status) -> bool:
     return BY_KEY[target]["order"] > BY_KEY[current]["order"]
 
 
-async def refresh_order(db, order: Order, settings) -> bool:
+async def refresh_order(db, order: Order, settings, fast: bool = False) -> bool:
     """Check the carrier once; advance the order status when it is safe. Returns True if status changed."""
     hours = max(1, int(settings.tracking_refresh_hours))
-    status_text, ok = await fetch_status(order.track_number, settings)
+    status_text, ok = await fetch_status(order.track_number, settings, fast=fast)
     order.tracking_checked_at = utcnow()
     order.tracking_next_check_at = utcnow() + timedelta(hours=hours)
     changed = False

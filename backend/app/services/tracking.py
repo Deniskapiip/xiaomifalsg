@@ -154,11 +154,20 @@ def _first_list(data: dict, keys) -> list | None:
     return None
 
 
-async def fetch_status(track_number: str, settings) -> tuple[str, bool]:
-    """Fetch the carrier status. Returns (status text, success flag)."""
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0), follow_redirects=True,
+async def fetch_status(track_number: str, settings, fast: bool = False) -> tuple[str, bool]:
+    """Fetch the carrier status. Returns (status text, success flag).
+
+    fast=True — для синхронной проверки при сохранении трека: один запрос
+    к официальному API с коротким таймаутом, без прокси-цепочек. Если не вышло,
+    статус подтянет фоновый воркер через минуту.
+    """
+    urls = api_urls(track_number, settings)
+    if fast:
+        urls = urls[:1]
+    timeout = httpx.Timeout(4.0 if fast else 10.0)
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True,
                                  headers={"User-Agent": USER_AGENT}) as client:
-        for url in api_urls(track_number, settings):
+        for url in urls:
             try:
                 response = await client.get(url)
             except httpx.HTTPError:

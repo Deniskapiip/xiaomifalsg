@@ -90,6 +90,15 @@ async def tracking_change(request: Request, order_id: int, data: TrackSetIn,
     async with request.app.state.write_lock:
         order = await find_order(db, order_id)
         await change_track(db, order, data, principal.user.id)
+        # Сохранили трек — сразу проверяем Добропост, чтобы статус изменился в этом же ответе.
+        if order.track_number and request.app.state.settings.order_tracking_enabled \
+                and request.app.state.settings.tracking_immediate_refresh:
+            from app.services.order_tracking import refresh_order
+            try:
+                await refresh_order(db, order, request.app.state.settings, fast=True)
+            except Exception:  # noqa: BLE001 - сеть не должна мешать сохранению трека
+                pass
+            await db.refresh(order)
         return await order_output(db, order, admin=True)
 
 

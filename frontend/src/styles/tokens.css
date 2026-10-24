@@ -100,6 +100,13 @@
   --content-safe-bottom: var(--tg-content-safe-area-inset-bottom, 0px);
   --motion-fast: 160ms;
   --motion-normal: 240ms;
+  --glass-surface: rgba(255, 255, 255, 0.055);
+  --glass-surface-strong: rgba(255, 255, 255, 0.095);
+  --glass-border: rgba(255, 255, 255, 0.13);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
+  --glass-nav: rgba(10, 16, 30, 0.72);
+  --glass-blur: 18px;
 }
 
 :root[data-theme='light'] {
@@ -181,6 +188,13 @@
   --gradient-accent: linear-gradient(115deg, #1558ad, #176bc4);
   --shadow-card: 0 12px 36px rgba(35, 56, 88, 0.055);
   --shadow-accent: 0 8px 28px rgba(23, 100, 192, 0.15);
+  --glass-surface: rgba(255, 255, 255, 0.55);
+  --glass-surface-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-highlight: rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 10px 28px rgba(35, 56, 88, 0.1);
+  --glass-nav: rgba(246, 248, 252, 0.78);
+  --glass-blur: 18px;
 }
 
 /* Brand colors of Chinese marketplaces. Used by the small colored platform badges. */

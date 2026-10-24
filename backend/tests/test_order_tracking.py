@@ -11,7 +11,7 @@ from app.statuses import Status
 
 
 def provider(monkeypatch, status_text, ok=True):
-    async def fake_fetch(track_number, settings):
+    async def fake_fetch(track_number, settings, fast=False):
         return status_text, ok
     monkeypatch.setattr(order_tracking_service, "fetch_status", fake_fetch)
 
@@ -161,6 +161,21 @@ async def test_refresh_all_checks_active_tracked_orders(client, app, settings, a
     for order in (first, second):
         saved = (await client.get(f"/api/orders/{order['id']}", headers=customer)).json()
         assert saved["status"] == "delivered"
+
+
+async def test_track_save_updates_status_immediately(client, app, settings, auth_headers, order_payload, monkeypatch):
+    customer = await auth_headers(572)
+    order = (await client.post("/api/orders", json=order_payload, headers=customer)).json()
+    manager = await auth_headers(222)
+    provider(monkeypatch, "Посылка доставлена получателю", True)
+    monkeypatch.setattr(app.state.settings, "tracking_immediate_refresh", True)
+    response = await client.post(f"/api/admin/orders/{order['id']}/tracking", headers=manager,
+                                 json={"number": "DBRPST70007", "notify": True})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "delivered"
+    assert body["tracking_status_text"] == "Посылка доставлена получателю"
+    assert body["tracking_checked_at"] is not None
 
 
 def test_status_mapping_and_advance_rules():
