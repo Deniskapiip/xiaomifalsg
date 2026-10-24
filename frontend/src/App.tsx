@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiError, authenticate, clearSession, setSessionListener } from './api/client';
@@ -11,13 +11,15 @@ import { AppShell } from './components/AppShell';
 import { ErrorState, LoadingState } from './components/UiStates';
 import { Home } from './pages/Home';
 import { Orders } from './pages/Orders';
-import { OrderDetails } from './pages/OrderDetails';
 import { Help } from './pages/Help';
-import { OrderWizard } from './pages/OrderWizard';
 import { Onboarding } from './pages/Onboarding';
-import { OrderSuccess } from './pages/OrderSuccess';
-import { AdminPanel } from './components/AdminPanel';
 import { allowedScreen, readScreen, screenUrl } from './lib/navigation';
+
+// Тяжёлые экраны грузим по требованию: главная и заказы открываются мгновенно.
+const OrderDetails = lazy(() => import('./pages/OrderDetails').then(module => ({ default: module.OrderDetails })));
+const OrderWizard = lazy(() => import('./pages/OrderWizard').then(module => ({ default: module.OrderWizard })));
+const OrderSuccess = lazy(() => import('./pages/OrderSuccess').then(module => ({ default: module.OrderSuccess })));
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 
 
 class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -116,6 +118,6 @@ function ClientContent({ session }: { session: AuthResponse }) {
   }
   return <AppShell user={session.user} role={session.role} activeTab={activeTab} onNavigate={navigate} adminEnabled>
     {config.isError && <p className="notice notice--warning">Не удалось обновить настройки. Показаны последние загруженные данные.</p>}
-    {body}
+    <Suspense fallback={<LoadingState label="Открываем экран…" />}>{body}</Suspense>
   </AppShell>;
 }

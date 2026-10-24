@@ -116,6 +116,7 @@ export function AppShell({ user, role, activeTab, onNavigate, children, adminEna
       </header>
       <OfflineBanner />
       <main className="app-main" id="main-content">{children}</main>
+      <footer className="app-footer">TAOJI CARGO · выкуп и доставка из Китая</footer>
       <nav ref={navRef} className={`bottom-nav ${dragging ? 'is-dragging' : ''}`} aria-label="Основная навигация"
         onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}>
         {lens && <span className="nav-lens" aria-hidden="true" style={{ transform: `translateX(${lens.x}px)`, width: `${lens.width}px` }} />}

@@ -697,3 +697,74 @@ dl.breakdown { margin: 8px 0 0; }
 @media (prefers-reduced-motion: reduce) {
   .nav-lens, .nav-item__icon { transition: none !important; }
 }
+
+/* ============================================================
+   PERF + «человеческий» вкус: меньше стекла и свечения,
+   больше типографики, воздуха и дисциплины цвета.
+   ============================================================ */
+.button, .icon-button, .chip, .segmented, .card, .contact-card, .tariff-card, .course-badge {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+.button { border-radius: 14px; }
+.button--secondary { background: var(--color-surface-raised); border-color: var(--color-border); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.button--secondary:hover:not(:disabled) { background: var(--color-surface-hover); border-color: var(--color-border-accent); transform: none; }
+.button--primary {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 52%), var(--gradient-accent);
+  background-size: 100% 100%, 160% 160%;
+  box-shadow: 0 10px 26px rgba(var(--rgb-accent), 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  animation-duration: 10s;
+}
+.button--primary:hover:not(:disabled) { box-shadow: 0 14px 32px rgba(var(--rgb-accent), 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.38); }
+.icon-button { border-radius: 12px; background: var(--color-surface-raised); border-color: var(--color-border); box-shadow: none; }
+.chip { background: transparent; border-color: var(--color-border); box-shadow: none; }
+.chip--accent { background: var(--color-accent-soft); border-color: var(--color-border-accent); }
+.segmented { background: var(--color-segmented-background); border-color: var(--color-border); box-shadow: none; }
+.card { border-radius: 18px; box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.045); }
+.card--glow { background: linear-gradient(145deg, rgba(var(--rgb-card-glow), 0.38), var(--color-surface) 78%); border-color: rgba(var(--rgb-accent-light), 0.2); }
+.hero { border-radius: 22px; }
+.app-canvas {
+  background:
+    radial-gradient(1000px 480px at 10% -10%, rgba(var(--rgb-aqua), 0.1), transparent 60%),
+    radial-gradient(760px 420px at 108% 8%, rgba(var(--rgb-mint), 0.05), transparent 58%),
+    var(--color-background);
+}
+.status-badge { display: inline-flex; align-items: center; gap: 6px; }
+.status-badge svg { flex: 0 0 auto; opacity: 0.9; }
+.order-progress__track > span { background-image: linear-gradient(90deg, var(--color-accent), var(--color-accent-light)); box-shadow: none; }
+.page { animation: page-appear 200ms ease both; }
+@keyframes page-appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.order-list > *, .admin-order-wrap, .page-stack > .card, .page-stack > section,
+.admin-stat-grid > *, .contact-grid > *, .admin-status-grid > * {
+  animation: card-rise 180ms ease both !important; animation-delay: 0s !important;
+}
+@keyframes card-rise { from { opacity: 0; } to { opacity: 1; } }
+.status-badge { animation-duration: 260ms; }
+
+/* Человеческие детали: тонкая полоса статуса на карточке, иконки-плашки, зерно. */
+.order-card { position: relative; overflow: hidden; }
+.order-card::before {
+  content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--color-accent-light); opacity: 0.65;
+}
+.order-card:has(.status-badge--complete)::before { background: var(--color-success); }
+.order-card:has(.status-badge--cancelled)::before { background: var(--color-muted); opacity: 0.4; }
+.admin-status-card__icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; color: var(--color-accent-light); background: var(--color-accent-soft); }
+.page-title { letter-spacing: -0.015em; }
+.eyebrow { letter-spacing: 0.16em; }
+.app-canvas::after {
+  content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.035; mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.55'/></svg>");
+}
+.app-footer {
+  position: relative; z-index: 2; padding: 28px 16px calc(88px + max(var(--safe-bottom), var(--content-safe-bottom)));
+  text-align: center; color: var(--color-faint); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+}
+@media (hover: none) {
+  .button:hover:not(:disabled), .contact-card:hover, .tariff-card:hover, .stale-item:hover,
+  .hero-latest:hover, .icon-button:hover:not(:disabled) { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page, .status-badge, .order-list > *, .admin-order-wrap, .page-stack > .card, .page-stack > section,
+  .admin-stat-grid > *, .contact-grid > *, .admin-status-grid > * { animation: none !important; }
+}
