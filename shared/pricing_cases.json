@@ -1,0 +1,9 @@
+[
+  {"name":"minimum","price_cny":"300","quantity":1,"rate":"13.5","commission_percent":"6.5","commission_min_rub":"650","tariff_price_per_kg":"1800","weight_kg":"2.3","goods_rub":"4050","commission_rub":"650","total_rub":"4700","delivery_estimate_rub":"4140"},
+  {"name":"percentage_ceiling","price_cny":"1000","quantity":1,"rate":"13.5","commission_percent":"6.5","commission_min_rub":"650","tariff_price_per_kg":"1800","weight_kg":"2.3","goods_rub":"13500","commission_rub":"878","total_rub":"14378","delivery_estimate_rub":"4140"},
+  {"name":"boundary","price_cny":"1000","quantity":1,"rate":"10","commission_percent":"6.5","commission_min_rub":"650","tariff_price_per_kg":"1800","weight_kg":"2.3","goods_rub":"10000","commission_rub":"650","total_rub":"10650","delivery_estimate_rub":"4140"},
+  {"name":"quantity","price_cny":"150","quantity":3,"rate":"13.5","commission_percent":"6.5","commission_min_rub":"650","tariff_price_per_kg":"1800","weight_kg":"2.3","goods_rub":"6075","commission_rub":"650","total_rub":"6725","delivery_estimate_rub":"4140"},
+  {"name":"decimal_precision","price_cny":"99.99","quantity":1,"rate":"12.345","commission_percent":"6.5","commission_min_rub":"650","tariff_price_per_kg":"1800","weight_kg":"2.3","goods_rub":"1235","commission_rub":"650","total_rub":"1885","delivery_estimate_rub":"4140"},
+  {"name":"delivery_ceiling","price_cny":"300","quantity":1,"rate":"13.5","commission_percent":"6.5","commission_min_rub":"650","tariff_price_per_kg":"1800.01","weight_kg":"0.01","goods_rub":"4050","commission_rub":"650","total_rub":"4700","delivery_estimate_rub":"19"},
+  {"name":"maximum_inputs","price_cny":"1000000","quantity":999,"rate":"99999999.9999","commission_percent":"100","commission_min_rub":"650","tariff_price_per_kg":"9999999999.99","weight_kg":"1000","goods_rub":"99899999999900100","commission_rub":"99899999999900100","total_rub":"199799999999800200","delivery_estimate_rub":"9999999999990"}
+]

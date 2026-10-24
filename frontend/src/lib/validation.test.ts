@@ -1,0 +1,60 @@
+import { describe, expect, it } from 'vitest';
+import { decimalValid, firstStepErrors, normalizeDecimal, platformLabel, safeHttpUrl, type DraftFields } from './validation';
+
+const validDraft: DraftFields = { link: 'https://shop.example/item/42', price_cny: '300', quantity: '1', item_title: '', comment: '', tariff_id: 1, weight_kg: '2.3',
+  insurance_enabled: false, packing_enabled: false, photo_report_enabled: false };
+
+describe('order input validation', () => {
+  it('accepts decimal comma and preserves decimal digits as strings', () => {
+    expect(normalizeDecimal(' 12,345 ')).toBe('12.345');
+    expect(decimalValid('0,01', '0.01', '1000', 3)).toBe(true);
+    expect(decimalValid('1000', '0.01', '1000', 3)).toBe(true);
+    expect(decimalValid('0.001', '0.01', '1000', 3)).toBe(false);
+    expect(decimalValid('1000.001', '0.01', '1000', 3)).toBe(false);
+    expect(decimalValid('13.555', '0.01', '1000000', 2)).toBe(false);
+  });
+
+  it.each(['', 'NaN', 'Infinity', '-1', '+1', '1e3', '.5', '1.', '1,2,3'])('rejects unsupported numeric input %s', (value) => {
+    expect(decimalValid(value, '0.01', '1000', 3)).toBe(false);
+  });
+
+  it('accepts unknown stores and marks them as unrecognized', () => {
+    expect(firstStepErrors(validDraft)).toEqual({});
+    expect(platformLabel(validDraft.link)).toEqual({ name: 'Другая площадка', known: false });
+  });
+
+  it.each(['https://eviltaobao.com/item', 'https://taobao.com.evil.example/item', 'https://dewu.com.evil.example/item'])('does not confuse suffixes with trusted platform domains: %s', (link) => {
+    expect(safeHttpUrl(link)).toBe(link);
+    expect(platformLabel(link).known).toBe(false);
+  });
+
+  it.each(['https://tb.cn/abc', 'https://m.tb.cn/abc', 'https://e.tb.cn/abc', 'https://item.taobao.com/item.htm?id=1'])('recognizes Taobao full and short links: %s', (link) => {
+    expect(platformLabel(link)).toEqual({ name: 'Taobao', known: true });
+  });
+
+  it.each([
+    ['https://dw4.co/t/A/abc', 'Poizon / Dewu'],
+    ['https://dewu.com/item/1', 'Poizon / Dewu'],
+    ['https://detail.tmall.com/item.htm?id=1', 'Tmall'],
+    ['https://detail.1688.com/offer/1.html', '1688'],
+    ['https://www.goofish.com/item?id=1', 'Xianyu / Goofish'],
+  ])('labels every supported store: %s', (link, name) => {
+    expect(platformLabel(link)).toEqual({ name, known: true });
+  });
+
+  it.each(['javascript:alert(1)', 'data:text/html,hello', 'ftp://example.com/item', '//example.com/item', 'https:example.com/item', 'http:/example.com/item', 'https:///example.com/item', 'https://example.com\\@evil.example/item', 'https://user:pass@example.com/item', 'https://example.com/with space', 'https://example.com/\nitem'])('rejects an unsafe link: %s', (link) => {
+    expect(safeHttpUrl(link)).toBeNull();
+  });
+
+  it('enforces quantity and text limits', () => {
+    expect(firstStepErrors({ ...validDraft, quantity: '999', item_title: 'a'.repeat(200), comment: 'b'.repeat(500) })).toEqual({});
+    const errors = firstStepErrors({ ...validDraft, quantity: '1000', item_title: 'a'.repeat(201), comment: 'b'.repeat(501), link: 'https://example.com/' + 'x'.repeat(2000) });
+    expect(Object.keys(errors).sort()).toEqual(['comment', 'item_title', 'link', 'quantity']);
+    expect(firstStepErrors({ ...validDraft, quantity: '1.5' })).toHaveProperty('quantity');
+    expect(firstStepErrors({ ...validDraft, quantity: '0' })).toHaveProperty('quantity');
+  });
+
+  it('does not treat extra service flags as invalid input', () => {
+    expect(firstStepErrors({ ...validDraft, insurance_enabled: true, packing_enabled: true, photo_report_enabled: true })).toEqual({});
+  });
+});

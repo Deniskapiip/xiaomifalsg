@@ -1,0 +1,82 @@
+name: taoji-cargo
+services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taoji
+      POSTGRES_DB: taoji
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/setup_production.py first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      backend:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taoji -d taoji"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env.production}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      backend:
+        ipv4_address: 172.30.0.2
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: taoji-cargo-app:${APP_IMAGE_TAG:-local}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    env_file:
+      - ../.env.production
+    environment:
+      ENV: production
+      DEV_MODE: "false"
+      BOT_ENABLED: "true"
+      BOT_MODE: webhook
+      HOST: 0.0.0.0
+      PORT: "8000"
+      FORWARDED_ALLOW_IPS: 127.0.0.1,::1,172.30.0.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      caddy:
+        condition: service_started
+    networks:
+      backend:
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/api/health',headers={'X-Forwarded-Proto':'https'}); urllib.request.urlopen(r,timeout=3).read()"]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

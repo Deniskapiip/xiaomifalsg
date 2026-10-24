@@ -1,0 +1,17 @@
+{
+    email {$ACME_EMAIL}
+    admin off
+}
+
+{$DOMAIN} {
+    encode zstd gzip
+    request_body {
+        max_size 128KB
+    }
+    reverse_proxy app:8000 {
+        header_up -CF-Connecting-IP
+        header_up -Forwarded
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

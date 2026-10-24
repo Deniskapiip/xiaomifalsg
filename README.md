@@ -1,0 +1,334 @@
+# Taoji Cargo — клиент, админка, Windows и сервер
+
+Это исходный код React-интерфейса, админки, backend, миграций, Telegram-бота, Windows-launcher и тестов. Готовая сборка интерфейса включена в архив. `start.bat` запускает приложение с HTTPS-туннелем; локальный режим открывается по адресу [http://127.0.0.1:8000](http://127.0.0.1:8000). Для постоянного домена подготовлены Docker Compose, PostgreSQL и Caddy: [STAGE-5-SERVER.md](STAGE-5-SERVER.md). Настоящий сервер ещё не развёрнут. Контейнерный деплой на Bothost — [deploy/BOTHOST.md](deploy/BOTHOST.md).
+
+Поле товара выделяет одну ссылку из текста «Поделиться», включая китайские сообщения. При запрете чтения буфера кнопка открывает окно ручной вставки. Незаполненные обязательные поля пульсируют красным после нажатия «Далее». Для фото, названия, цены в юанях и вариантов подключён необязательный адаптер OneBound; настоящие данные доступны после настройки собственных API key и secret. Без ключей сохраняется ручной ввод. Подключение, стоимость и обновление работающего ngrok — [PRODUCT-AUTOFILL.md](PRODUCT-AUTOFILL.md).
+
+При ошибке запуска бота launcher показывает безопасный код и этап. Отдельная проверка связи: `python scripts/check_telegram.py`. Команды для Windows и расшифровка — [DIAGNOSIS-WINDOWS.md](DIAGNOSIS-WINDOWS.md).
+
+Перед «Готово» launcher проверяет `/api/health` через публичный HTTPS-адрес. Ошибка 1033 и недоступный backend теперь показываются отдельно. Проверка работающего запуска: `python scripts/check_tunnel.py`; другой транспорт Cloudflare: `start.bat --tunnel-protocol auto`. Диагностика и резервный ngrok — [TUNNEL-1033-WINDOWS.md](TUNNEL-1033-WINDOWS.md).
+
+Если Telegram заблокирован, а глобальный VPN мешает Cloudflare-туннелю, можно направить только бота через локальный HTTP/SOCKS5-прокси с помощью `BOT_PROXY_URL`. Обновление зависимостей и настройка для Windows — [PROXY-WINDOWS.md](PROXY-WINDOWS.md). Возможность локального прокси или раздельной маршрутизации зависит от вашего VPN-клиента.
+
+Если проект уже работает в `G:\taoji-cargo`, используйте [STAGE-4-WINDOWS.md](STAGE-4-WINDOWS.md): обновление с сохранением настроек и БД, подключение настоящего бота, запуск двойным кликом и резервирование. Реальные сценарии телефона и ролей — в [ACCEPTANCE-TELEGRAM.md](ACCEPTANCE-TELEGRAM.md). Эти проверки предстоит выполнить на ваших устройствах; готовность исходников не означает, что они уже пройдены.
+
+Предыдущие инструкции сохранены: [админка и роли — Этап 3](STAGE-3-WINDOWS.md), [клиентский мастер — Этап 2](STAGE-2-WINDOWS.md). Ниже — полная установка с нуля и справка API.
+
+Результаты предыдущих этапов сохранены в [VERIFICATION-STAGE-2.md](VERIFICATION-STAGE-2.md) и [VERIFICATION.md](VERIFICATION.md). Проверки запуска и резервирования этого этапа — в [VERIFICATION-STAGE-4.md](VERIFICATION-STAGE-4.md).
+
+Проверки админки этапа 3 сохранены в [VERIFICATION-STAGE-3.md](VERIFICATION-STAGE-3.md). Текущая сборка: [VERIFICATION-STAGE-5.md](VERIFICATION-STAGE-5.md).
+
+Новые статусы уже включены: `to_recipient` — «В пути до получателя», `delivered` — «Доставлен». В completed входят delivered и cancelled. Всего 12 статусов, включая отмену.
+
+## Что реализовано и зачем
+
+- FastAPI и Pydantic: проверяют запросы и возвращают русские ошибки `{code, message}`.
+- SQLAlchemy async: пользователи, настройки, тарифы, заказы, события, очередь и журнал уведомлений.
+- SQLite WAL + внешние ключи + busy_timeout. Путь к БД всегда считается от корня проекта.
+- Alembic: создание схемы и управляемое изменение её в следующих версиях.
+- React, TypeScript и Vite: онбординг, главная, мастер заказа, собственные заказы, карточка и помощь. Фирменные тёмная и светлая темы с переключателем в шапке и онбординге, локальный Manrope, загрузка, ошибки, пустые состояния и оффлайн-баннер. Выбор темы запоминается в этом браузере, цвета Telegram синхронизируются при переключении.
+- Telegram SDK: MainButton, BackButton, haptic, safe-area и открытие ссылок при доступности в клиенте. Онбординг и черновик сохраняются в CloudStorage с fallback на localStorage; данные разделены по проверенному ID пользователя. Нажатия кнопок и табов дают лёгкий `impactOccurred('light')`, результат действия — `success`/`error`; вместо браузерных `alert`/`confirm` используются нативные `showAlert`, `showConfirm` и `showPopup`. Если клиент Telegram 8.0+, на главной есть добавление иконки на главный экран (`addToHomeScreen`).
+- Список заказов обновляется при возвращении в приложение и каждые 30 секунд, пока экран открыт. Карточка показывает прогресс, историю МСК и сохранённый расчёт.
+- Умный разбор ссылок: из текста «Поделиться» с иероглифами вырезается один http(s)-адрес, короткие ссылки без схемы (`m.tb.cn/...`, `dw4.co/...`) распознаются, площадка определяется по домену и китайскому названию магазина (Poizon / Dewu, Taobao, Tmall, 1688, Xianyu / Goofish).
+- Калькулятор: к товару и комиссии добавлены необязательные «Страховка груза» (% от стоимости), «Обрешётка / упаковка» и «Фотоотчёт на складе». Сервер — источник итоговых сумм, клиент показывает то же разбиение; кнопка «Поделиться расчётом» копирует текстовое резюме (площадка, товар, услуги, итог, доставка, курс) и при ошибке буфера предлагает отправить его менеджеру.
+- Трекинг: администратор сохраняет трек-номер в карточке заказа; клиент проверяет этап по трек-номеру или номеру заказа на экране «Мои заказы», получает карточку с прогрессом и историей; бот отвечает на `/track <номер>`. Клиенту приходит уведомление о новом трек-номере.
+- Админка в той же тёмной и светлой теме: обзор, счётчики по статусам, новые за сегодня по МСК, поиск и фильтры всех заказов. Вкладка видна владельцу и менеджеру.
+- Админская карточка: статус, подтверждение отката и отмены, флажок уведомления, окно итоговой суммы доставки, приватная заметка, история с авторами и результаты отправки уведомлений.
+- Владелец через интерфейс меняет курс и комиссию, смотрит историю курса, создаёт и редактирует тарифы, задаёт порядок и включает либо скрывает их. Существующие заказы сохраняют свой снимок расчёта.
+- Decimal: backend — источник окончательных сумм; живое клиентское превью использует decimal.js. Дробные денежные значения и вес в API передаются строками; рублёвые результаты также строки целых чисел. Это защищает JavaScript-интерфейс от потери точности.
+- ExactDecimal: SQLite хранит дроби в TEXT, PostgreSQL — NUMERIC. Данные возвращаются в Python как Decimal, без преобразования через float.
+- HMAC initData, auth_date до 24 часов, JWT HS256 на 15 минут. Роль вычисляется на каждом запросе по числовым Telegram ID.
+- Проверка прав, собственных заказов, длины и формата полей, http/https ссылок. Клиентские суммы и попытки прислать статус или чужой user_id игнорируются при оформлении.
+- Идемпотентность: UUID одного оформления создаёт один заказ, в том числе при одновременных запросах. Повторный запрос возвращает существующий заказ, даже если курс или тариф уже изменились.
+- Все расчётные настройки копируются в заказ. Смена текущих настроек не меняет ранее созданные заказы.
+- Админские API: поиск, фильтры, статусы, сумма доставки, приватные заметки, счётчики. Owner дополнительно меняет настройки и тарифы. Настройки возвращают последние 50 изменений курса; полная история остаётся в БД.
+- Статистика денег показывает суммы по заказам и расчётную комиссию, а не подтверждённый доход. В MVP нет учёта факта оплаты.
+- Бот: /start, /app, /orders, /track, /help, HTML-тексты в одном файле, Menu Button; polling локально и webhook с двумя секретами на хостинге.
+- Уведомления: задания сохраняются вместе с событием заказа. Отдельная асинхронная задача отправляет их после запроса, делает до 3 попыток, уважает RetryAfter, фиксирует результат.
+- Если нет разрешения писать, задание ожидает /start или write access. После разрешения оно возвращается в очередь. Forbidden не отменяет заказ. Админский ответ API содержит notification_warning и журнал результатов.
+- Перед повторной отправкой берём событие, включая сумму доставки на момент смены статуса, поэтому позднее изменение суммы не подменяет старое уведомление.
+- Ограничения: auth 30/мин на IP, создание 10 новых заказов/час на пользователя. Лимит оформления считается по БД и переживает перезапуск; лимит auth находится в памяти одного процесса.
+- Запуск Windows: `start.bat` и `scripts/dev.py`, Quick Tunnel с обновлением URL меню бота, локальный режим, внешний HTTPS URL и проверка `--check` без записи настроек.
+- Скрытая настройка токена Telegram и реальных ID через `scripts/setup_telegram.py`. Нужен хотя бы один владелец; менеджеров можно добавить позже. Локальные роли проверяются через `--local-role` без замены реальных списков в `.env`.
+- SQLite online backup перед каждым обычным запуском и по ручной команде, ротация 14 согласованных копий в `backups`. Восстановление — вручную по инструкции.
+- Новые заказы локального тестового пользователя помечаются при создании и не отправляют Telegram-уведомления, включая последующие смены статуса после включения бота. Исторические немаркированные заказы не меняются.
+
+Очередь работает в одном процессе без Redis/Celery. После остановки незавершённые отправки восстанавливаются. Telegram не предоставляет ключ идемпотентности для sendMessage: при остановке между фактической отправкой и фиксацией результата возможен дубликат. Запускайте один экземпляр и один Uvicorn worker.
+
+## Локальная проверка Windows / PowerShell
+
+Предполагаем Windows 10/11, Python 3.13 x64 и распакованный проект `G:\taoji-cargo`. Для первой установки Python:
+
+```powershell
+winget install --id Python.Python.3.13 --exact --source winget
+```
+
+Для сборки интерфейса рекомендуем Node.js 24 LTS. Поддерживаются Node.js 22 от 22.12, ветка 24 и версии от 26; ветки 23 и 25 не поддерживаются. Node.js не требуется для запуска готовой сборки из архива. Если распаковали в другое место, замените путь в командах.
+
+Если Node.js не установлен:
+
+```powershell
+winget install --id OpenJS.NodeJS.LTS --exact --source winget
+```
+
+Для Quick Tunnel установите cloudflared:
+
+```powershell
+winget install --id Cloudflare.cloudflared --exact --source winget
+```
+
+Откройте новый PowerShell и проверьте `py -3.13 --version`, `cloudflared --version` и, если пересобираете интерфейс, `node --version` / `npm.cmd --version`. Уже установленные инструменты повторно устанавливать не нужно.
+
+### 1. Виртуальное окружение
+
+```powershell
+cd G:\taoji-cargo
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+.\.venv\Scripts\python.exe -m pip check
+```
+
+Ожидается успешная установка и `No broken requirements found`. Активация venv не нужна: команды явно вызывают его Python, поэтому не зависят от политики запуска PowerShell.
+
+`requirements.txt` фиксирует все прямые и транзитивные пакеты. `requirements.in` описывает допустимые семейства версий для будущего контролируемого обновления; устанавливайте именно requirements.txt. Случайный `pip install --upgrade` нарушит проверенную комбинацию.
+
+### 2. Безопасный локальный dev-вход
+
+```powershell
+.\.venv\Scripts\python.exe scripts\setup_local.py --dev-owner
+```
+
+Скрипт создаёт .env, генерирует JWT_SECRET без вывода его значения и явно включает локального тестового owner с ID 900000001. Настоящий бот отключён, публичный туннель не используется. Существующие ID администраторов сохраняются. DEV_MODE по умолчанию выключен в конфигурации и .env.example; здесь вы включаете его только для проверки. При обновлении работающего проекта этот шаг повторять не нужно. Для дальнейших локальных проверок используйте `dev.py --local --local-role owner`: права задаются только процессу приложения.
+
+Все настройки с пояснениями находятся в .env.example. Не отправляйте .env в чаты и не добавляйте его в Git. Локальный тестовый ID `900000001`, добавленный этим скриптом в `OWNER_IDS`, видит вкладку «Админка». Для настоящих ролей указывайте числовые Telegram ID; username права не задаёт. Роль owner имеет приоритет, если ID также находится в `MANAGER_IDS`.
+
+### 3. Миграции и seed
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m alembic upgrade head
+..\.venv\Scripts\python.exe -m app.seed
+..\.venv\Scripts\python.exe -m alembic current
+..\.venv\Scripts\python.exe -m alembic check
+```
+
+Ожидается ревизия `0002 (head)` и отсутствие новых операций миграции. Созданы курс 13.5, комиссия 6.5%, минимум 650 и ровно четыре неактивных тарифа с ценой 0. Повторный seed не дублирует данные и не сбрасывает настройки.
+
+Для расчёта и тестового оформления активируйте демо-тарифы:
+
+```powershell
+..\.venv\Scripts\python.exe -m app.seed --demo
+```
+
+Это тестовые цены 1800, 2000, 2200 и 2400 ₽/кг с явной пометкой «демо». Они не являются условиями бизнеса. Скрипт изменяет только нетронутые пустые заготовки. Уже настроенные тарифы не переписываются.
+
+### 4. Автотесты
+
+```powershell
+..\.venv\Scripts\python.exe -m pytest -q
+```
+
+Тесты используют отдельные временные БД и подменяют сетевые вызовы Telegram. Настоящие сообщения не отправляются; ваша рабочая БД не меняется. Текущий результат и пределы проверки записаны в [VERIFICATION-STAGE-5.md](VERIFICATION-STAGE-5.md). Четыре интеграционные проверки требуют отдельной PostgreSQL taoji_integration и явного разрешения тестового режима; команды есть в STAGE-5-SERVER.md. Без неё эти проверки пропускаются.
+
+### 5. Установка и сборка интерфейса
+
+```powershell
+cd G:\taoji-cargo\frontend
+npm.cmd ci
+npm.cmd test
+npm.cmd run build
+```
+
+`npm ci` устанавливает точные версии из `package-lock.json`. `test` проверяет клиентскую логику, включая общие с backend расчётные примеры. `build` проверяет TypeScript и создаёт `frontend\dist`; эту папку отдаёт FastAPI. Node.js нужен для установки и сборки, отдельный Node-сервер для обычного запуска не нужен.
+
+При обновлении замените исходники всего проекта, включая backend и `frontend\dist`. С Этапа 2 `/api/calc` содержит курс, комиссию и тариф, использованные в расчёте; Этап 3 также добавляет авторов в `events[].actor` и `rate_history[].changed_by_user` админских ответов. Дополнительных миграций БД на Этапах 2 и 3 нет. В текущей версии добавлена миграция `0002_order_options_tracking` (опции расчёта и трек-номер): перед запуском выполните `alembic upgrade head`. Сохраните `.env`, `.venv` и `data`; не пересоздавайте БД и не запускайте настройку окружения повторно. Если используете готовый `frontend\dist` из архива, повторная сборка для обновления не требуется.
+
+### 6. Запуск приложения
+
+Из корня проекта для локальной проверки:
+
+```powershell
+cd G:\taoji-cargo
+.\.venv\Scripts\python.exe scripts\dev.py --local --local-role owner
+```
+
+Оставьте это окно открытым. Сервер работает, пока процесс запущен. Остановка — Ctrl+C. Launcher делает резервную копию и временно включает dev-вход только локальному процессу; `.env` и реальные списки администраторов не меняются. Интерфейс открывается по адресу [http://127.0.0.1:8000](http://127.0.0.1:8000). Сценарий клиентского мастера находится в [STAGE-2-WINDOWS.md](STAGE-2-WINDOWS.md), проверка админки — в [STAGE-3-WINDOWS.md](STAGE-3-WINDOWS.md). API доступно по адресу [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+
+Для обновления готовой сборкой сохраняйте `.env`, `.venv`, `data` и `backups`. Для этой версии выполните `alembic upgrade head` (ревизия `0002`), повторный seed не обязателен. Полная последовательность для настоящего Telegram — ниже и в [STAGE-4-WINDOWS.md](STAGE-4-WINDOWS.md).
+
+### 7. Проверка API в новом окне PowerShell
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/health
+
+$auth = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/telegram -ContentType 'application/json; charset=utf-8' -Body '{"initData":""}'
+$headers = @{ Authorization = "Bearer $($auth.access_token)" }
+$auth.role
+
+$config = Invoke-RestMethod -Uri http://127.0.0.1:8000/api/config -Headers $headers
+$config | Select-Object rate_cny_rub, commission_percent, commission_min_rub
+$config.statuses | Select-Object key, name, terminal
+
+$calcBody = @{ price_cny = '300'; quantity = 1; tariff_id = 1; weight_kg = '2.3' } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/calc -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $calcBody
+
+$orderBody = @{
+    idempotency_key = [guid]::NewGuid().ToString()
+    link = 'https://item.taobao.com/item.htm?id=123'
+    price_cny = '300'
+    quantity = 1
+    tariff_id = 1
+    weight_kg = '2.3'
+    item_title = 'Тестовый товар'
+    comment = 'Размер M'
+} | ConvertTo-Json
+
+$order = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/orders -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $orderBody
+$order | Select-Object id, public_no, status, goods_rub, commission_rub, total_rub, delivery_estimate_rub
+
+$same = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/orders -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $orderBody
+$same.id -eq $order.id
+
+$statusBody = @{ status = 'awaiting_delivery_payment'; delivery_amount_rub = '4200'; notify = $false } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/admin/orders/$($order.id)/status" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $statusBody | Select-Object public_no, status, delivery_final_rub
+```
+
+Ожидается: health `ok=True`; роль `owner`; товар 4050, комиссия 650, итог 4700, ориентировочная доставка 4140; повторный запрос даёт `True`; финальная доставка 4200. При истечении JWT повторите две команды входа и создания $headers. В этом режиме бот отключён, поэтому сообщения не ожидаются.
+
+Для отката статуса или отмены в запросе дополнительно передайте `confirmed: true`. Без него API вернёт 409 CONFIRMATION_REQUIRED. В админском интерфейсе окно подтверждения появляется автоматически; выбор «Ожидает оплату доставки» открывает ввод положительной целой суммы рублей.
+
+## Настоящий бот и запуск двойным кликом
+
+Получите токен через [@BotFather](https://t.me/BotFather) и числовые ID реальных администраторов через [@userinfobot](https://t.me/userinfobot). Из корня проекта запустите скрытый мастер:
+
+```powershell
+cd G:\taoji-cargo
+.\.venv\Scripts\python.exe scripts\setup_telegram.py
+```
+
+Enter в поле токена оставляет текущий токен. Укажите полный список владельцев: нужен хотя бы один реальный ID. Менеджеры необязательны; пустой ввод очищает прежний список менеджеров. Подтверждённые списки заменяют прежние: включите всех нужных администраторов, исключив локальные тестовые ID. Мастер сохраняет корректный JWT-секрет и подключение БД; пустой или шаблонный JWT-секрет заменяет новым. Настройки публичного теста: `ENV=development`, `DEV_MODE=false`, `BOT_ENABLED=true`, `BOT_MODE=polling`. Заглушку `WEBAPP_URL=https://setup-pending.invalid` launcher заменит настоящим URL туннеля.
+
+Далее откройте `G:\taoji-cargo\start.bat` двойным кликом или выполните:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\dev.py
+```
+
+Launcher резервирует SQLite, запускает Cloudflare Quick Tunnel, обновляет `WEBAPP_URL` и запускает приложение. Затем проверяет локальный и публичный `/api/health`; сообщение «Готово» означает, что оба ответили корректно во время проверки. Бот устанавливает команды и Menu Button, удаляет старый webhook без сброса ожидающих событий и работает через polling. Каждый администратор должен нажать `/start` у бота; username роль не задаёт.
+
+Оставьте окно работающим; остановка — `Ctrl+C`. При новом туннеле адрес меняется, Menu Button обновляется кодом. Старые кнопки в сообщениях могут вести на прежний адрес. Профильный Main Mini App URL — отдельная настройка BotFather и автоматически не обновляется. Quick Tunnel бесплатен, не требует аккаунта или домена и предназначен для тестирования; постоянный сервер — следующий этап.
+
+Режимы launcher: `--local`, `--local --local-role owner|manager|client`, `--url https://YOUR_HTTPS_HOST` для внешнего туннеля, `--check` для проверки без записи и запуска. Без `--local-role` локальный вход использует роль тестового ID по существующим спискам `.env`. Бесплатный ngrok с аккаунтом поддерживается отдельным `scripts/ngrok_tunnel.py`: секрет берётся из `.env`; HTTPS URL передаётся в `dev.py --url`. Подробности и ограничения WebView — в [STAGE-4-WINDOWS.md](STAGE-4-WINDOWS.md).
+
+Обрабатываем `/start`, `/app`, `/orders`, `/help` только в личных чатах. Реальные Windows и телефонные проверки выполните по [ACCEPTANCE-TELEGRAM.md](ACCEPTANCE-TELEGRAM.md). Локальный браузерный прогон не подтверждает работу Telegram SDK на вашем устройстве.
+
+Важные ограничения SDK: initData нельзя считать обновлённым после обычной перезагрузки страницы; при превышении 24 часов потребуется повторный запуск из Telegram. readTextFromClipboard доступен только запуску из attachment menu; при обычном запуске из меню бота предусмотрены браузерная попытка чтения и вставка в поле. CloudStorage — хранение черновика, а не доказательство прав.
+
+## Резервные копии
+
+Перед каждым обычным локальным или публичным запуском launcher создаёт согласованный online backup SQLite в `backups`; сохраняет 14 последних собственных копий. `--check` ничего не резервирует и не меняет. Дополнительная копия вручную:
+
+```powershell
+cd G:\taoji-cargo
+.\.venv\Scripts\python.exe scripts\backup.py
+```
+
+Файл backup самодостаточен. Не заменяйте эту процедуру копированием работающей БД без WAL. Порядок ручного восстановления, включая остановку процессов и исключение старых WAL/SHM, описан в [STAGE-4-WINDOWS.md](STAGE-4-WINDOWS.md). Автоматического ежедневного расписания нет. `.env` резервируется отдельно и содержит секреты.
+
+## API и контракт
+
+Префикс `/api`. Все денежные дроби отправляются строками, quantity/tariff_id/limit/offset — целыми числами JSON. Результаты в рублях — строки без копеек. Decimal в ответах может содержать завершающие нули, например "13.5000"; это та же сумма, что "13.5".
+
+- POST /auth/telegram: {initData} → access_token, expires_in, user, role.
+- GET /config: курс, дата, комиссия, контакты, активные тарифы, весь справочник статусов и цены доп. услуг: insurance_percent, packing_fee_rub, photo_report_fee_rub.
+- POST /calc: price_cny, quantity, tariff_id, weight_kg, insurance_enabled?, packing_enabled?, photo_report_enabled? → разбивка, rate, commission_percent, commission_min_rub, tariff_name, tariff_price_per_kg, а также insurance_rub, packing_rub, photo_report_rub, extras_total_rub и total_with_extras_rub. Итоговый экран показывает данные именно этого ответа, чтобы курс и тариф соответствовали суммам.
+- POST /orders: idempotency_key UUID, link, price_cny, quantity, tariff_id, weight_kg, insurance_enabled?, packing_enabled?, photo_report_enabled?, item_title?, comment?. Сервер сам считает услуги и сохраняет снимок сумм в заказе; total_rub остаётся суммой товара и комиссии, услуги — в extras_total_rub/total_with_extras_rub.
+- GET /orders?status_group=active|completed&limit=20&offset=0; GET /orders/{id} — только собственные.
+- GET /track?number=<трек-номер или TC-000001> — только собственные заказы; 404 NOT_FOUND, если номер не найден.
+- POST /me/write-access: {allowed: true|false}.
+- GET /admin/dashboard; GET /admin/orders?status=&q=&limit=&offset=&sort=newest|oldest; GET /admin/orders/{id}.
+- POST /admin/orders/{id}/status: {status, delivery_amount_rub?, notify=true, confirmed=false}. Сумма доставки — положительная строка целого числа; обязательна только awaiting_delivery_payment.
+- POST /admin/orders/{id}/tracking: {number, notify=true}. Пустая строка удаляет трек-номер; клиент получает уведомление, событие tracking сохраняется в истории.
+- PATCH /admin/orders/{id}/note: {note}.
+- GET/PUT /admin/settings; GET/POST /admin/tariffs; PUT /admin/tariffs/{id} — только owner.
+- GET /health — техническая проверка БД.
+
+Чужой заказ в клиентском API возвращает 404. Обе админские роли смотрят все заказы через /admin. Клиент не получает manager_note, события note, внутренние ID авторов и журнал уведомлений.
+
+## Безопасность и дальнейший перенос
+
+- JWT хранится интерфейсом в памяти, не в CloudStorage/localStorage. Сервер доверяет только проверенному initData; initDataUnsafe не используется для принятия решений. При повторном входе данные запроса и черновика разделены по проверенному Telegram ID.
+- Список ролей читается из загруженных .env-настроек при каждом запросе; после изменения .env нужен перезапуск. Роль не записывается в JWT.
+- Не запускайте DEV_MODE через публичный туннель. Config отклоняет DEV_MODE с нелокальным WEBAPP_URL; dev-вход дополнительно проверяет локальные host/peer и отсутствие прокси-заголовков.
+- Production запрещает DEV_MODE, требует включённого бота, HTTPS и webhook. Webhook проверяет секрет в пути и X-Telegram-Bot-Api-Secret-Token до обработки update.
+- Логи приложения не печатают токены, URL webhook и пользовательский текст; access-log Uvicorn отключён. Ошибки Telegram сохраняются безопасным кодом.
+- Для Caddy/Docker на Этапе 5 настроим доверенные прокси, чтобы HTTPS scheme и IP клиента передавались корректно. Не расширяйте forwarded_allow_ips до `*` на публичном порту.
+- Ссылки магазина только сохраняются и проверяются по схеме; backend их не загружает. Загрузка файлов отсутствует.
+- Для PostgreSQL: установленные зависимости уже включают asyncpg; новый DATABASE_URL начинается `postgresql+asyncpg://`. Сначала выполните миграции новой БД. Само изменение URL не переносит данные SQLite; скрипт переноса появится на Этапе 5.
+- Проверена генерация SQL PostgreSQL; настоящий сервер PostgreSQL и боевой webhook в этом этапе не запускались.
+- Расчёт goods и commission округляется вверх отдельно; total складывается из них. Вес и доставка — ориентировочные до указания delivery_final_rub менеджером.
+- Реквизитов, условий возврата, гарантий и обещаний сроков нет. Демо-тарифы отключите или заполните реальными условиями до работы с клиентами.
+
+## Где что менять
+
+| Что | Где |
+|---|---|
+| Курс, комиссия, минимум | Админка владельца → Настройки; API /admin/settings |
+| Тарифы и описания сроков | Админка владельца → Тарифы; API /admin/tariffs |
+| Все сообщения бота | backend/app/bot/texts.py |
+| Статусы, порядок, иконки, этапы | backend/app/statuses.py; новый ключ также требует миграции CHECK-ограничения и текста уведомления |
+| Контакты | .env: OWNER_USERNAME, MANAGER_USERNAME, CHANNEL_USERNAME |
+| Список администраторов | .env: OWNER_IDS, MANAGER_IDS; затем перезапуск |
+| Статус, итоговая доставка, приватная заметка | Админка → Заказы → Карточка заказа |
+| Трек-номер заказа | Админка → Заказ → «Трек-номер»; API POST /admin/orders/{id}/tracking; клиент — экран «Мои заказы», бот — /track |
+| Доп. услуги: страховка, упаковка, фотоотчёт | .env: INSURANCE_PERCENT, PACKING_FEE_RUB, PHOTO_REPORT_FEE_RUB; отдаются в /api/config |
+| Деплой на Bothost | корневой `Dockerfile` (галочка «свой Dockerfile»), `deploy/bothost-entrypoint.sh`, `deploy/BOTHOST.md`, `.env.bothost.example` |
+| Настройки безопасности | .env и backend/app/config.py |
+| Режим запуска и туннель | scripts/dev.py; команды в STAGE-4-WINDOWS.md |
+| Резервные копии | scripts/backup.py; папка backups, 14 последних копий |
+| Настройка настоящего бота | scripts/setup_telegram.py; секреты в .env |
+| Формулы | backend/app/services/pricing.py и общие тесты shared/pricing_cases.json |
+| Цвета и логотип | frontend/src/styles/tokens.css (тёмная тема в :root, светлая в :root[data-theme='light']) и frontend/public/logo.png; цвета Telegram — frontend/src/lib/theme.ts |
+| FAQ и клиентские объяснения | frontend/src/pages/Help.tsx, Home.tsx и Onboarding.tsx |
+
+## Что может пойти не так
+
+| Ошибка | Решение |
+|---|---|
+| Пустой/короткий JWT_SECRET | Выполнить scripts/setup_local.py, если секрет ещё пустой; иначе заменить его на случайный secrets.token_urlsafe(48) в .env |
+| no such table / БД не готова | Из backend выполнить alembic upgrade head, затем python -m app.seed |
+| Тариф недоступен | Для теста app.seed --demo; для работы владелец должен настроить и активировать тариф |
+| 401 при пустом initData | Пустой вход разрешён только в явном локальном DEV_MODE; в Telegram требуется настоящий initData |
+| 401 после работы с API | Повторить авторизацию: JWT короткоживущий |
+| 409 CONFIRMATION_REQUIRED | Для осознанного отката/отмены передать confirmed=true |
+| API отвергает число | Дроби передавать строками, например "300.00" и "2.3"; рубли доставки — "4200" |
+| Бот не стартует | Проверить токен, сеть, BOT_ENABLED, HTTPS WEBAPP_URL; не запускать два polling процесса |
+| Уведомление ожидает разрешение | Нажать /start или дать write access. Проверить числовые ID и notifications_log |
+| Корневой URL отвечает 503 FRONTEND_NOT_BUILT | Из frontend выполнить npm.cmd ci и npm.cmd run build, затем перезапустить backend |
+| Сборка frontend не запускается | Проверить поддерживаемую версию Node.js; использовать npm.cmd в PowerShell |
+| database is locked | Закрыть второй процесс приложения/редактор БД, не держать транзакции открытыми; один worker |
+| Порт занят | Остановить старый сервер Ctrl+C или изменить PORT и адрес тестовых команд |
+| Нет вкладки «Админка» | Проверить числовой ID текущего пользователя в OWNER_IDS / MANAGER_IDS; перезапустить backend и обновить страницу |
+| Менеджер не может менять курс и тарифы | Эти экраны доступны только owner; manager работает с заказами, статусами, доставкой и заметками |
+| На Bothost все запросы отвечают 400 HTTPS_REQUIRED | Прокси хостинга не в списке доверенных: добавить его подсеть в FORWARDED_ALLOW_IPS (см. deploy/BOTHOST.md) |
+
+## Что проверить перед коммерческим запуском
+
+Пройдите телефонную приёмку в [ACCEPTANCE-TELEGRAM.md](ACCEPTANCE-TELEGRAM.md). Подтвердите реальные тарифы, цены за кг, сроки и ограничения доставки; текущий курс, процент и минимум комиссии; FAQ, условия выкупа, оплаты, отмены и возвратов; имена контактов и тексты уведомлений. Демо-цены не являются предложением бизнеса. Проверьте настоящие числовые ID владельца и менеджера.
+
+Для постоянного размещения используйте [STAGE-5-SERVER.md](STAGE-5-SERVER.md); результаты этой сборки и пределы проверки — [VERIFICATION-STAGE-5.md](VERIFICATION-STAGE-5.md). Для Bothost (один контейнер + SQLite) — [deploy/BOTHOST.md](deploy/BOTHOST.md): там переменные окружения, постоянный диск, healthcheck и типовые ошибки. Команды переноса требуют пустой целевой БД и сохранённой SQLite-копии. Не запускайте домашний polling и серверный webhook одновременно с одним токеном.
+
+Следующий релиз: автозаполнение товара и варианты/SKU по [PRODUCT-AUTOFILL.md](PRODUCT-AUTOFILL.md), подтверждение факта оплаты, поиск и экспорт заказов, контролируемое хранение фотографий и отдельное хранилище копий. Работающий ручной ввод цены сохраняется при ошибке площадки.
+
+Официальные источники, проверенные при работе:
+
+- [Telegram Mini Apps](https://core.telegram.org/bots/webapps)
+- [Telegram Bot API](https://core.telegram.org/bots/api)
+- [aiogram: long polling](https://docs.aiogram.dev/en/latest/dispatcher/long_polling.html)
+- [aiogram: Menu Button](https://docs.aiogram.dev/en/latest/api/methods/set_chat_menu_button.html)
+- [SQLAlchemy: custom types](https://docs.sqlalchemy.org/en/20/core/custom_types.html)
+- [Cloudflare: Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
+- [ngrok: установка Windows](https://ngrok.com/download/windows)
+- [ngrok: ограничения бесплатного плана](https://ngrok.com/docs/pricing-limits/free-plan-limits)
+- [Microsoft: winget install](https://learn.microsoft.com/en-us/windows/package-manager/winget/install)
+- [Microsoft: каталог пакетов winget](https://github.com/microsoft/winget-pkgs)
