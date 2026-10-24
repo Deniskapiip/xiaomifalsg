@@ -30,17 +30,38 @@ export function App() {
   const [session, setSession] = useState<AuthResponse | null>(null);
   const [error, setError] = useState('');
   const active = useRef(false);
+  const retry = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const login = useCallback(async () => {
     setError('');
-    try { const value = await authenticate(); if (active.current) setSession(value); }
-    catch (caught) { if (caught instanceof ApiError && caught.code === 'SESSION_CHANGED') return; if (active.current) setError(caught instanceof Error ? caught.message : 'Не удалось войти. Откройте приложение из Telegram.'); }
+    try {
+      const value = await authenticate();
+      if (!active.current) return;
+      retry.current = 0;
+      setSession(value);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'SESSION_CHANGED') return;
+      if (!active.current) return;
+      if (caught instanceof ApiError && caught.code === 'NETWORK_ERROR' && retry.current < 5) {
+        // Сервер мог засыпать/перезапускаться — повторяем сами, не пугая «нет интернета».
+        retry.current += 1;
+        setError('Подключаемся к серверу, подождите…');
+        retryTimer.current = setTimeout(() => { if (active.current) void login(); }, 1500 * retry.current);
+        return;
+      }
+      setError(caught instanceof Error ? caught.message : 'Не удалось войти. Откройте приложение из Telegram.');
+    }
   }, []);
   useEffect(() => {
     active.current = true;
     const cleanup = initializeTelegram();
     setSessionListener(value => { if (active.current) setSession(value); });
     void login();
-    return () => { active.current = false; cleanup(); setSessionListener(null); clearSession(); };
+    return () => {
+      active.current = false;
+      if (retryTimer.current !== null) clearTimeout(retryTimer.current);
+      cleanup(); setSessionListener(null); clearSession();
+    };
   }, [login]);
   if (!session) return <main className="app-canvas"><div className="page">{error ? <ErrorState message={error} onRetry={() => void login()} /> : <LoadingState label="Открываем Taoji Cargo…" />}</div></main>;
   return <Boundary><VerifiedSession key={`${session.user.tg_id}:${session.role}`} session={session} /></Boundary>;

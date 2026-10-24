@@ -50,17 +50,31 @@ export function EmptyState({ title, description, actionLabel, onAction }: {
 }
 
 export function OfflineBanner() {
-  const [offline, setOffline] = useState(!navigator.onLine);
+  // navigator.onLine в Telegram WebView часто врёт («офлайн» при живом интернете),
+  // поэтому показываем баннер только если реальный запрос к серверу тоже не проходит.
+  const [serverDown, setServerDown] = useState(false);
   useEffect(() => {
-    const online = () => setOffline(false);
-    const disconnected = () => setOffline(true);
-    window.addEventListener('online', online);
-    window.addEventListener('offline', disconnected);
+    let cancelled = false;
+    const check = async () => {
+      if (navigator.onLine !== false) { if (!cancelled) setServerDown(false); return; }
+      try {
+        const response = await fetch('/api/health', { cache: 'no-store' });
+        if (!cancelled) setServerDown(!response.ok);
+      } catch { if (!cancelled) setServerDown(true); }
+    };
+    const onOffline = () => void check();
+    const onOnline = () => setServerDown(false);
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    const timer = window.setInterval(() => { if (navigator.onLine === false) void check(); }, 15000);
+    void check();
     return () => {
-      window.removeEventListener('online', online);
-      window.removeEventListener('offline', disconnected);
+      cancelled = true;
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+      window.clearInterval(timer);
     };
   }, []);
-  if (!offline) return null;
-  return <div className="offline-banner" role="status" aria-live="polite"><Icon name="info" size={18} /><span>Нет подключения к интернету. Проверьте сеть, чтобы продолжить.</span></div>;
+  if (!serverDown) return null;
+  return <div className="offline-banner" role="status" aria-live="polite"><Icon name="info" size={18} /><span>Нет связи с сервером. Пробуем подключиться снова…</span></div>;
 }

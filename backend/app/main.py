@@ -55,6 +55,32 @@ def is_secure_request(request: Request, settings: Settings) -> bool:
     return address.is_private or address.is_loopback
 
 
+async def start_bot_with_retry(settings, sessions, write_lock):
+    """Telegram бывает временно недоступен при старте контейнера — не падаем с первой попытки."""
+    from app.bot.bot import configure_bot, create_bot
+    for attempt in range(3):
+        bot = None
+        try:
+            bot, dispatcher = create_bot(settings, sessions, write_lock)
+            await configure_bot(bot, settings)
+            return bot, dispatcher
+        except StartupError as exc:
+            # Ошибки авторизации/настроек уже классифицированы по этапу — повторять бессмысленно.
+            if bot is not None:
+                await bot.session.close()
+            exc.emit_marker()
+            raise RuntimeError(exc.message) from None
+        except Exception as exc:  # noqa: BLE001 - классифицируем и решаем, повторять ли
+            if bot is not None:
+                await bot.session.close()
+            error = bot_startup_error(exc, "identity")
+            if error.code not in {"BOT_NETWORK", "BOT_RATE_LIMITED"} or attempt == 2:
+                error.emit_marker()
+                raise RuntimeError(error.message) from None
+            await asyncio.sleep(2 + attempt * 2)
+    raise RuntimeError("Не удалось запустить бота")
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     engine, sessions = create_database(settings.database_url)
@@ -79,21 +105,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 error.emit_marker()
                 raise RuntimeError(error.message) from None
             if settings.bot_enabled:
-                from app.bot.bot import configure_bot, create_bot
                 from app.services.notifications import NotificationWorker
-                try:
-                    try:
-                        bot, dispatcher = create_bot(settings, sessions, write_lock)
-                    except Exception as exc:
-                        raise bot_startup_error(exc, "identity") from None
-                    await configure_bot(bot, settings)
-                except StartupError as exc:
-                    exc.emit_marker()
-                    raise RuntimeError(exc.message) from None
-                except Exception as exc:
-                    error = bot_startup_error(exc, "identity")
-                    error.emit_marker()
-                    raise RuntimeError(error.message) from None
+                bot, dispatcher = await start_bot_with_retry(settings, sessions, write_lock)
                 app.state.bot, app.state.dispatcher = bot, dispatcher
                 tasks.append(asyncio.create_task(NotificationWorker(bot, sessions, settings, write_lock).run()))
                 if settings.bot_mode == "polling":

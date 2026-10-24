@@ -58,15 +58,9 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
   const [busy, setBusy] = useState(false);
   const [validationAttempt, setValidationAttempt] = useState(0);
   const formRef = useRef<HTMLDivElement>(null);
-  const [online, setOnline] = useState(navigator.onLine);
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener('online', update); window.addEventListener('offline', update);
-    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
-  }, []);
   useEffect(() => {
     if (!hydrated) return;
     if (!draft.items.some(item => item.key === activeKey)) setActiveKey(draft.items[0]?.key ?? '');
@@ -300,7 +294,7 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
       } else setError('Не удалось подтвердить оформление. Нажмите «Проверить заказ»: повторный заказ не появится.');
     } finally { submitting.current = false; if (mounted.current) setBusy(false); }
   }
-  const active = hydrated && online && !busy && !pasteHint && !pasting && (step < 4 ? step !== 2 || config.tariffs.length > 0 : Boolean(pending || (receipt && calcInput && quote.isSuccess && !quote.isFetching)));
+  const active = hydrated && !busy && !pasteHint && !pasting && (step < 4 ? step !== 2 || config.tariffs.length > 0 : Boolean(pending || (receipt && calcInput && quote.isSuccess && !quote.isFetching)));
   const buttonText = step < 4 ? 'Далее' : pending ? 'Проверить заказ' : 'Оформить заказ';
   const nativeButton = useMainButton(buttonText, active, busy, () => { void next(); });
   if (!hydrated) return <LoadingState label="Восстанавливаем черновик…" />;

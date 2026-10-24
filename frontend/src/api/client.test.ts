@@ -113,8 +113,8 @@ describe('in-memory authentication and request retries', () => {
 
   it('converts network failures into the same Russian error during requests and authentication', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-    await expect(client.request('/config')).rejects.toMatchObject({ code: 'NETWORK_ERROR', status: 0, message: expect.stringContaining('Нет связи') });
-    await expect(client.authenticate()).rejects.toMatchObject({ code: 'NETWORK_ERROR', status: 0, message: expect.stringContaining('Нет связи') });
+    await expect(client.request('/config')).rejects.toMatchObject({ code: 'NETWORK_ERROR', status: 0, message: expect.stringContaining('Сервер не отвечает') });
+    await expect(client.authenticate()).rejects.toMatchObject({ code: 'NETWORK_ERROR', status: 0, message: expect.stringContaining('Сервер не отвечает') });
   });
 
   it('handles a non-object error response without exposing a TypeError', async () => {

@@ -21,7 +21,7 @@ STAGES = frozenset({"identity", "commands", "menu", "polling", "webhook", "datab
 MESSAGES = {
     "BOT_UNAUTHORIZED": "Telegram отклонил BOT_TOKEN. Проверьте токен у @BotFather и повторите setup_telegram.py.",
     "BOT_FORBIDDEN": "Telegram запретил настройку бота. Проверьте, что бот доступен и не заблокирован.",
-    "BOT_NETWORK": "Не удалось подключиться к Telegram. Проверьте интернет и доступ к api.telegram.org, затем повторите запуск.",
+    "BOT_NETWORK": "Telegram временно недоступен. Проверьте доступ к api.telegram.org — запуск можно повторить (сеть не при чём).",
     "BOT_RATE_LIMITED": "Telegram временно ограничил запросы. Подождите несколько минут и повторите запуск.",
     "BOT_BAD_REQUEST": "Telegram отклонил настройку бота. Проверьте HTTPS WEBAPP_URL и настройки бота у @BotFather.",
     "BOT_UNKNOWN": "Не удалось настроить бота. Проверьте BOT_TOKEN, доступ к Telegram и настройки бота.",

@@ -25,7 +25,7 @@ export async function authenticate(): Promise<AuthResponse> {
   const attempt = (async () => {
     let response: Response;
     try { response = await fetch('/api/auth/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: webApp()?.initData ?? '' }) }); }
-    catch { throw new ApiError('NETWORK_ERROR', 'Нет связи с сервером. Проверьте интернет и повторите.', 0); }
+    catch { throw new ApiError('NETWORK_ERROR', 'Сервер не отвечает. Повторите попытку.', 0); }
     const session = await parseResponse<AuthResponse>(response);
     if (epoch !== generation) throw new ApiError('SESSION_CHANGED', 'Сессия изменилась. Повторите вход.', 401);
     accessToken = session.access_token;
@@ -43,7 +43,7 @@ export async function request<T>(path: string, options: RequestInit = {}, renewe
     response = await fetch('/api' + path, { ...options, headers: { 'Content-Type': 'application/json', ...(usedToken ? { Authorization: `Bearer ${usedToken}` } : {}), ...options.headers } });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ApiError('NETWORK_ERROR', 'Нет связи с сервером. Проверьте интернет и повторите.', 0);
+    throw new ApiError('NETWORK_ERROR', 'Сервер не отвечает. Повторите попытку.', 0);
   }
   if (epoch !== generation) throw new ApiError('SESSION_CHANGED', 'Сессия изменилась. Повторите вход.', 401);
   if (response.status === 401 && !renewed) {
