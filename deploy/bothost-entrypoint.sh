@@ -31,6 +31,12 @@ export ENV=production
 # Публичный домен не должен включать локальный dev-вход.
 export DEV_MODE=false
 
+# 2.1. Прокси Bothost терминирует HTTPS и передаёт X-Forwarded-Proto.
+# Uvicorn доверяет заголовкам только от доверенных сетей; без этого приложение
+# видит scheme=http и отвечает 400 HTTPS_REQUIRED. Панельное значение
+# (обычно 127.0.0.1,::1) не подходит, поэтому задаём приватные сети Docker.
+export FORWARDED_ALLOW_IPS="127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,::ffff:0:0/96"
+
 # 3. SQLite — только на постоянном диске Bothost. PostgreSQL сохраняется, если задан явно.
 case "${DATABASE_URL:-}" in
   ""|sqlite*) export DATABASE_URL="sqlite+aiosqlite:///$DATA_DIR/taoji.db" ;;
