@@ -26,18 +26,22 @@ export function validateTariff(fields: TariffFields): { errors: Record<string, s
   const errors: Record<string, string> = {};
   const name = fields.name.trim();
   const currency = tariffCurrency(fields.price_currency);
-  const onRequest = fields.price_on_request;
+  const normalizedPrice = normalizeDecimal(fields.price_per_kg).trim();
+  // Пустое поле или 0 = «цена по запросу»: не заставляем искать галочку.
+  const zeroOrEmpty = normalizedPrice === '' ||
+    (Number.isFinite(Number(normalizedPrice)) && Number(normalizedPrice) === 0);
+  const onRequest = fields.price_on_request || zeroOrEmpty;
   if (!name || name.length > 100) errors.name = 'Название: от 1 до 100 символов.';
   if (!currency) errors.price_currency = 'Валюта: выберите рубли или юани.';
   const symbol = currency === 'cny' ? '¥' : '₽';
   if (!onRequest && !decimalValid(fields.price_per_kg, fields.is_active ? '0.01' : '0', '9999999999.99', 2)) {
-    errors.price_per_kg = `Цена: до 9 999 999 999,99 ${symbol}, до 2 знаков после запятой. Для активного тарифа больше нуля — или включите «Цена по запросу».`;
+    errors.price_per_kg = `Цена: до 9 999 999 999,99 ${symbol}, до 2 знаков после запятой. Оставьте пустым или 0 — тариф станет «Цена по запросу».`;
   }
   if (fields.eta_text.length > 200) errors.eta_text = 'Срок: до 200 символов.';
   if (fields.description.length > 1000) errors.description = 'Описание: до 1000 символов.';
   if (!/^\d{1,5}$/.test(fields.sort_order.trim()) || Number(fields.sort_order) > 10000) errors.sort_order = 'Порядок: целое число от 0 до 10 000.';
   return { errors, input: Object.keys(errors).length ? null : {
-    name, price_per_kg: onRequest ? '0' : new Exact(normalizeDecimal(fields.price_per_kg)).toFixed(),
+    name, price_per_kg: onRequest ? '0' : new Exact(normalizedPrice).toFixed(),
     price_on_request: onRequest,
     price_currency: currency as TariffCurrency, insurance_available: fields.insurance_available,
     eta_text: fields.eta_text.trim(), description: fields.description.trim(), is_active: fields.is_active, sort_order: Number(fields.sort_order),

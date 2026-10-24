@@ -21,12 +21,15 @@ async def test_owner_creates_active_tariff_without_price(client, app, auth_heade
     assert listed[0]["name"] == "Индивидуальный расчёт"
 
 
-async def test_active_tariff_without_price_requires_flag(client, auth_headers):
+async def test_active_tariff_with_zero_price_becomes_on_request(client, auth_headers):
     owner = await auth_headers(111)
     response = await client.post("/api/admin/tariffs", headers=owner, json={
-        "name": "Бесплатно?", "price_per_kg": "0", "is_active": True,
+        "name": "Без фиксированной цены", "price_per_kg": "0", "is_active": True,
     })
-    assert response.status_code == 422
+    assert response.status_code == 200, response.text
+    tariff = response.json()
+    assert tariff["price_on_request"] is True
+    assert Decimal(str(tariff["price_per_kg"])) == Decimal("0")
 
 
 async def test_quote_and_order_work_with_price_on_request(client, app, auth_headers, order_payload):

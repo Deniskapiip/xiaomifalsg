@@ -225,11 +225,11 @@ class TariffIn(Input):
 
     @model_validator(mode="after")
     def active_price(self):
-        if self.price_on_request:
+        # Нет фиксированной цены (0 или пусто) — это и есть «цена по запросу»,
+        # отдельно нажимать флажок не обязательно.
+        if self.price_on_request or self.price_per_kg <= 0:
+            self.price_on_request = True
             self.price_per_kg = Decimal("0")
-            return self
-        if self.is_active and self.price_per_kg <= 0:
-            raise ValueError("У активного тарифа цена должна быть больше нуля или включена «цена по запросу»")
         return self
 
 

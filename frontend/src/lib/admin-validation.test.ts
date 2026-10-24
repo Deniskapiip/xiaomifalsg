@@ -30,9 +30,12 @@ describe('owner settings validation', () => {
 });
 
 describe('tariff validation', () => {
-  it('allows a zero price only for an inactive tariff', () => {
-    expect(validateTariff({ ...tariff, is_active: false, price_per_kg: '0' }).input?.price_per_kg).toBe('0');
-    expect(validateTariff({ ...tariff, price_per_kg: '0' }).errors).toHaveProperty('price_per_kg');
+  it('treats a zero or empty price as «цена по запросу» for any tariff', () => {
+    const inactive = validateTariff({ ...tariff, is_active: false, price_per_kg: '0' });
+    expect(inactive.input?.price_per_kg).toBe('0');
+    expect(inactive.input?.price_on_request).toBe(true);
+    const active = validateTariff({ ...tariff, price_per_kg: '0' });
+    expect(active.input?.price_on_request).toBe(true);
     expect(validateTariff({ ...tariff, price_per_kg: '0.01' }).input?.price_per_kg).toBe('0.01');
   });
 
@@ -55,6 +58,13 @@ describe('tariff validation', () => {
 
   it('allows an active tariff with the price on request flag', () => {
     const result = validateTariff({ ...tariff, price_per_kg: '', price_on_request: true });
+    expect(result.errors).toEqual({});
+    expect(result.input?.price_on_request).toBe(true);
+    expect(result.input?.price_per_kg).toBe('0');
+  });
+
+  it.each(['', '0', '0.00', '0,00'])('turns an empty or zero price into «цена по запросу»: %s', (price_per_kg) => {
+    const result = validateTariff({ ...tariff, price_per_kg });
     expect(result.errors).toEqual({});
     expect(result.input?.price_on_request).toBe(true);
     expect(result.input?.price_per_kg).toBe('0');
