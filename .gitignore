@@ -24,3 +24,6 @@ pnpm-lock.yaml
 imports/
 *.zip
 .pytest-tmp/
+
+# Node compile cache (генерируется сборкой, не коммитим)
+node-compile-cache/
