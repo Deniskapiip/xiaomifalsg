@@ -94,8 +94,10 @@ async def refresh_order(db, order: Order, settings) -> bool:
                                         "provider_status": status_text[:200]})
             db.add(event)
             await db.flush()
-            from app.services.orders import queue_notification
+            from app.services.orders import queue_notification, queue_review_reminder
             await queue_notification(db, event, order.user_id, target.value)
+            if target == Status.delivered:
+                await queue_review_reminder(db, order, settings)
             changed = True
             log.info("order_tracking_status order=%s %s->%s", order.id, previous, target.value)
     await db.commit()

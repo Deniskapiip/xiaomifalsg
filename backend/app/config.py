@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     # Ежедневный бэкап SQLite в data/backups (бесплатно, без внешних сервисов).
     backup_enabled: bool = True
     backup_keep: int = Field(default=7, ge=1, le=30)
+    # Напоминание об отзыве: одно сообщение клиенту через N часов после «Доставлен».
+    review_reminder_enabled: bool = True
+    review_reminder_hours: int = Field(default=48, ge=1, le=720)
     # Автосмена статусов заказа по трек-номеру Добропоста (после «Ожидает оплаты доставки»).
     order_tracking_enabled: bool = True
     # Публичный ключ из трекинг-страницы Добропоста; секрета не содержит, но меняется вместе с сайтом.

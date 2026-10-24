@@ -53,6 +53,7 @@ CLIENT_TEXTS = {
     "delivered": "✅ Заказ {no} доставлен.",
     "cancelled": "❌ Заказ {no} отменён. Вопросы — @{manager}.",
     "tracking": "📦 Заказ {no}: трек-номер {track}.",
+    "review_reminder": "⭐ Заказ {no} доставлен. Понравилось? Оставьте отзыв — @{review}.",
 }
 
 
@@ -60,7 +61,8 @@ def client_notification(kind, order, event, settings):
     amount = event.payload.get("delivery_amount_rub", "0")
     track = event.payload.get("track_number") or "—"
     text = CLIENT_TEXTS[kind].format(no=escape(order.public_no), manager=escape(settings.manager_username),
-                                     sum=escape(ru(int(amount))), track=escape(track))
+                                     sum=escape(ru(int(amount))), track=escape(track),
+                                     review=escape(settings.review_username))
     if kind == "created":
         count = event.payload.get("items")
         if isinstance(count, int) and count > 1:

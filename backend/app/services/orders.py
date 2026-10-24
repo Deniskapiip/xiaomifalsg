@@ -65,6 +65,25 @@ async def queue_notification(db, event: OrderEvent, recipient_id: int, kind: str
     db.add(NotificationJob(event_id=event.id, user_id=recipient_id, order_id=event.order_id, kind=kind))
 
 
+async def queue_review_reminder(db, order: Order, settings):
+    """Одно напоминание об отзыве через REVIEW_REMINDER_HOURS после «Доставлен»."""
+    if settings is None or not getattr(settings, "review_reminder_enabled", True):
+        return
+    if await is_local_preview_order(db, order.id):
+        return
+    exists = await db.scalar(select(NotificationJob.id).where(
+        NotificationJob.order_id == order.id, NotificationJob.kind == "review_reminder"))
+    if exists is not None:
+        return
+    event = OrderEvent(order_id=order.id, actor_user_id=None, type="review_reminder",
+                       payload={"hours": settings.review_reminder_hours})
+    db.add(event)
+    await db.flush()
+    db.add(NotificationJob(event_id=event.id, user_id=order.user_id, order_id=order.id,
+                           kind="review_reminder",
+                           next_attempt_at=utcnow() + timedelta(hours=settings.review_reminder_hours)))
+
+
 async def create_order(db, data: OrderCreate, user: User, settings):
     existing = await db.scalar(select(Order).where(Order.idempotency_key == str(data.idempotency_key)))
     if existing is not None:
@@ -133,7 +152,7 @@ async def create_order(db, data: OrderCreate, user: User, settings):
     return order
 
 
-async def change_status(db, order: Order, data: StatusIn, actor_id: int):
+async def change_status(db, order: Order, data: StatusIn, actor_id: int, settings=None):
     if requires_confirmation(order.status, data.status) and not data.confirmed:
         raise AppError("CONFIRMATION_REQUIRED", "Подтвердите откат статуса или отмену заказа", 409)
     previous = order.status
@@ -157,6 +176,8 @@ async def change_status(db, order: Order, data: StatusIn, actor_id: int):
     await db.flush()
     if data.notify:
         await queue_notification(db, event, order.user_id, data.status.value)
+        if data.status == Status.delivered:
+            await queue_review_reminder(db, order, settings)
     await db.commit()
     return order
 
@@ -198,7 +219,7 @@ async def order_output(db, order: Order, admin: bool = False, include_events: bo
     if include_events:
         query = select(OrderEvent).where(OrderEvent.order_id == order.id).order_by(OrderEvent.created_at, OrderEvent.id)
         if not admin:
-            query = query.where(OrderEvent.type != "note")
+            query = query.where(OrderEvent.type.not_in(["note", "review_reminder"]))
         events = (await db.scalars(query)).all()
     if not admin:
         result.events = [EventOut.model_validate(event) for event in events]

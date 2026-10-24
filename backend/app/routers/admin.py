@@ -71,7 +71,7 @@ async def status_change(request: Request, order_id: int, data: StatusIn,
                         principal: Principal = Depends(administrator), db: AsyncSession = Depends(session)):
     async with request.app.state.write_lock:
         order = await find_order(db, order_id)
-        await change_status(db, order, data, principal.user.id)
+        await change_status(db, order, data, principal.user.id, request.app.state.settings)
         return await order_output(db, order, admin=True)
 
 

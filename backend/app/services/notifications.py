@@ -73,7 +73,7 @@ class NotificationWorker:
                 else:
                     content = texts.client_notification(job.kind, order, event, self.settings)
                     buttons = [[InlineKeyboardButton(text=texts.BUTTON_ORDER, web_app=WebAppInfo(url=self.settings.webapp_url.rstrip("/") + f"/?open=order_{order.id}"))]]
-                    if job.kind == "delivered" and self.settings.review_username:
+                    if job.kind in {"delivered", "review_reminder"} and self.settings.review_username:
                         buttons.append([InlineKeyboardButton(
                             text=texts.BUTTON_REVIEW,
                             url=f"https://t.me/{self.settings.review_username}")])
