@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import type { AppConfig, Navigate, User } from '../api/types';
 import { useOrders } from '../api/hooks';
 import { OrderCard } from '../components/OrderCard';
@@ -6,7 +5,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/UiStates';
 import { Icon } from '../components/Icon';
 import { StatusBadge } from '../components/StatusBadge';
 import { decimalNumber, shortDateMsk } from '../lib/format';
-import { addToHomeScreen, canAddToHomeScreen, haptic, homeScreenStatus, openTelegram } from '../lib/telegram';
+import { openTelegram } from '../lib/telegram';
 
 const deliverySteps = [
   { icon: 'clipboard', title: 'Оформление заказа', description: 'Добавьте ссылку на товар, выберите тариф и укажите примерный вес.' },
@@ -18,24 +17,7 @@ const deliverySteps = [
 export function Home({ config, user, onNavigate }: { config: AppConfig; user: User; onNavigate: Navigate }) {
   const orders = useOrders({ limit: 3 });
   const completed = useOrders({ group: 'completed', limit: 5 });
-  const [homeStatus, setHomeStatus] = useState<TelegramHomeScreenStatus | null>(null);
-  const [homeHint, setHomeHint] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-    void homeScreenStatus().then(status => { if (!cancelled) setHomeStatus(status); });
-    return () => { cancelled = true; };
-  }, []);
-
-  function addHome() {
-    if (!addToHomeScreen()) { setHomeHint('Клиент Telegram не поддерживает добавление на главный экран.'); haptic('error'); return; }
-    haptic('success');
-    setHomeHint('Подтвердите добавление в окне Telegram.');
-    // The native call has no callback; re-check the status to hide the offer when it worked.
-    window.setTimeout(() => { void homeScreenStatus().then(status => { if (status === 'added') { setHomeStatus('added'); setHomeHint('Иконка добавлена на главный экран.'); } }); }, 2500);
-  }
-
-  const showHomeOffer = canAddToHomeScreen() && homeStatus !== 'added';
   const deliveredOrder = completed.data?.items.find(order => order.status === 'delivered');
   const reviewContact = config.contacts.review || config.contacts.manager;
   const latestOrder = orders.data?.items[0];
@@ -73,15 +55,6 @@ export function Home({ config, user, onNavigate }: { config: AppConfig; user: Us
         <Icon name="refresh" size={18} />
         <span><strong>Курс: {decimalNumber(config.rate_cny_rub, 4)} ₽ за 1 ¥</strong><span>Обновлён {shortDateMsk(config.rate_updated_at)}</span></span>
       </div>
-
-      {showHomeOffer && <div className="notice notice--info">
-        <Icon name="download" size={18} />
-        <div>
-          <p>Добавьте Taoji Cargo на главный экран — приложение будет открываться в один тап.</p>
-          <button className="button button--secondary" type="button" onClick={addHome}>Добавить на главный экран</button>
-          {homeHint && <p className="field-hint" role="status">{homeHint}</p>}
-        </div>
-      </div>}
 
       <section className="section">
         <div className="section-heading"><h2>Как проходит доставка</h2><span className="chip">4 этапа</span></div>
