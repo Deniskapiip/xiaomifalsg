@@ -780,3 +780,18 @@ dl.breakdown { margin: 8px 0 0; }
 .nav-item--order.is-active .nav-item__icon {
   box-shadow: 0 0 0 4px rgba(var(--rgb-accent), 0.16), 0 14px 32px rgba(var(--rgb-accent), 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
+
+/* Центральная вкладка «Заказать»: акцентная, но в одной сетке с остальными. */
+.bottom-nav { overflow: visible; }
+.nav-item--order { gap: 5px; }
+.nav-item--order .nav-item__icon {
+  width: 46px; height: 30px; border-radius: 12px; transform: none;
+  box-shadow: 0 4px 14px rgba(var(--rgb-accent), 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.nav-item--order .nav-item__icon svg { transform: scale(1.04); }
+.nav-item--order > span:last-child { color: var(--color-accent-light); font-weight: 750; }
+.nav-item--order.is-active .nav-item__icon {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(var(--rgb-accent), 0.16), 0 6px 18px rgba(var(--rgb-accent), 0.36),
+              inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
