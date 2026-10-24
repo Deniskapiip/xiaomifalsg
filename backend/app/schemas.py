@@ -327,6 +327,9 @@ class OrderOut(Output):
     extras_total_rub: int = 0
     total_with_extras_rub: int = 0
     track_number: str | None = None
+    tracking_status_text: str = ""
+    tracking_checked_at: datetime | None = None
+    tracking_next_check_at: datetime | None = None
     status: str
     created_at: datetime
     updated_at: datetime

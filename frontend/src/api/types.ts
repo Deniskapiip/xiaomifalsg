@@ -28,6 +28,9 @@ export interface Order {
   insurance_enabled: boolean; packing_enabled: boolean; photo_report_enabled: boolean;
   insurance_rub: string; packing_rub: string; photo_report_rub: string; extras_total_rub: string; total_with_extras_rub: string;
   track_number: string | null;
+  tracking_status_text?: string;
+  tracking_checked_at?: string | null;
+  tracking_next_check_at?: string | null;
   status: string; created_at: string; updated_at: string; events: OrderEvent[];
 }
 export interface OrderPage { items: Order[]; total: number; limit: number; offset: number }

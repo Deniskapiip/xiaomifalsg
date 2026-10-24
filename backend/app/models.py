@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, false, text
@@ -66,6 +66,7 @@ class Order(Base):
         Index("ix_orders_user_created", "user_id", "created_at"),
         Index("ix_orders_status_created", "status", "created_at"),
         Index("ix_orders_track_number", "track_number"),
+        Index("ix_orders_tracking_next_check", "tracking_next_check_at"),
         CheckConstraint("quantity >= 1 AND quantity <= 999", name="order_quantity_bounds"),
         CheckConstraint("status IN (" + ",".join(repr(s.value) for s in Status) + ")", name="order_status_values"),
     )
@@ -103,6 +104,9 @@ class Order(Base):
     extras_total_rub: Mapped[int] = mapped_column(BigInteger, default=0, server_default=text("0"))
     total_with_extras_rub: Mapped[int] = mapped_column(BigInteger, default=0, server_default=text("0"))
     track_number: Mapped[str | None] = mapped_column(String(64))
+    tracking_status_text: Mapped[str] = mapped_column(String(200), default="", server_default=text("''"))
+    tracking_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    tracking_next_check_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     manager_note: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(40), default=Status.processing)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)

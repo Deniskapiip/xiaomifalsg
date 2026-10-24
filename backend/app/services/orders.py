@@ -171,6 +171,10 @@ async def change_note(db, order: Order, note: str, actor_id: int):
 async def change_track(db, order: Order, data: TrackSetIn, actor_id: int):
     number = " ".join(data.number.split())
     order.track_number = number or None
+    order.tracking_status_text = ""
+    order.tracking_checked_at = None
+    # Новый номер проверяем сразу (в течение минуты), очистка снимает расписание.
+    order.tracking_next_check_at = utcnow() if number else None
     order.updated_at = utcnow()
     event = OrderEvent(order_id=order.id, actor_user_id=actor_id, type="tracking",
                        payload={"track_number": number})

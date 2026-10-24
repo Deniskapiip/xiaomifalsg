@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     review_username: str = "taojiotziv"
     # Автообновление внешних трек-номеров (Добропост): раз в N часов.
     tracking_refresh_hours: int = Field(default=6, ge=1, le=72)
+    # Автосмена статусов заказа по трек-номеру Добропоста (после «Ожидает оплаты доставки»).
+    order_tracking_enabled: bool = True
     # Публичный ключ из трекинг-страницы Добропоста; секрета не содержит, но меняется вместе с сайтом.
     dobropost_api_key: str = "b4538f528e7a957bd734fdeeab12d143"
     dobropost_api_base: str = "https://api.dobropost.com/api/tracking"

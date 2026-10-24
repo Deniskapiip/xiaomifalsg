@@ -313,6 +313,12 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
         <button className="button button--secondary" type="button" disabled={blocked || !trackDirty} onClick={() => void saveTrack()}>{busy === 'track' ? 'Сохраняем…' : 'Сохранить трек-номер'}</button>
         {order.track_number && <button className="button button--danger" type="button" disabled={blocked} onClick={() => void saveTrack(true)}>Удалить</button>}
       </div>
+      <p className="field-hint">После «Ожидает оплаты доставки» статус заказа обновляется автоматически по Добропосту (каждые 6 часов). До этого этапа статусы ставите вы.</p>
+      {(order.tracking_status_text || order.tracking_checked_at) && <div className="breakdown">
+        {order.tracking_status_text && <div className="breakdown-row"><span>Статус Добропоста</span><strong>{order.tracking_status_text}</strong></div>}
+        {order.tracking_checked_at && <div className="breakdown-row"><span>Проверено</span><strong>{dateMsk(order.tracking_checked_at)}</strong></div>}
+        {order.tracking_next_check_at && <div className="breakdown-row"><span>Следующая проверка</span><strong>{dateMsk(order.tracking_next_check_at)}</strong></div>}
+      </div>}
     </section>
 
     <div className="admin-detail-grid">

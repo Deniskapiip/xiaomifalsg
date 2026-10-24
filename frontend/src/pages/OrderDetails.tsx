@@ -75,7 +75,12 @@ export function OrderDetails({ config, orderId, onNavigate }: { config: AppConfi
         </div>
         {trackCopy === 'copied' && <p className="field-hint" role="status">Трек-номер скопирован</p>}
         {trackCopy === 'failed' && <p className="field-error" role="status">Не получилось скопировать. Трек-номер: {order.track_number}</p>}
-        <p className="field-hint">Проверить этап по номеру можно в разделе «Мои заказы» или командой /track в боте.</p>
+        {(order.tracking_status_text || order.tracking_checked_at) && <div className="breakdown">
+          {order.tracking_status_text && <div className="breakdown-row"><span>Статус Добропоста</span><strong>{order.tracking_status_text}</strong></div>}
+          {order.tracking_checked_at && <div className="breakdown-row"><span>Проверено</span><strong>{dateMsk(order.tracking_checked_at)}</strong></div>}
+          {order.tracking_next_check_at && <div className="breakdown-row"><span>Следующая проверка</span><strong>{dateMsk(order.tracking_next_check_at)}</strong></div>}
+        </div>}
+        <p className="field-hint">Проверить этап по номеру можно в разделе «Мои заказы» или командой /track в боте. После «Ожидает оплаты доставки» статус обновляется автоматически по Добропосту.</p>
       </section>}
 
       <section className="card product-details">

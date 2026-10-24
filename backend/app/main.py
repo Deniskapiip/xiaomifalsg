@@ -16,6 +16,7 @@ from app.db import create_database
 from app.errors import AppError, install_error_handlers
 from app.limiter import create_limiter, limit_error
 from app.routers import admin, auth, orders, public, tracking
+from app.services.order_tracking import OrderTrackingWorker
 from app.services.tracking import TrackingWorker
 from app.startup_errors import StartupError, bot_startup_error
 
@@ -97,6 +98,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if settings.bot_mode == "polling":
                     tasks.append(asyncio.create_task(dispatcher.start_polling(bot, handle_signals=False, close_bot_session=False, allowed_updates=["message"])))
             tasks.append(asyncio.create_task(TrackingWorker(sessions, settings, write_lock, bot).run()))
+            if settings.order_tracking_enabled:
+                tasks.append(asyncio.create_task(OrderTrackingWorker(sessions, settings).run()))
             app.state.background_tasks = tasks
             yield
         finally:
