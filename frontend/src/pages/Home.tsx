@@ -98,6 +98,7 @@ export function Home({ config, user, onNavigate }: { config: AppConfig; user: Us
       <section className="contact-grid" aria-label="Связаться с нами">
         <button className="contact-card card" onClick={() => openTelegram(config.contacts.manager)}><Icon name="send" size={24} /><span><strong>Написать менеджеру</strong><small>@{config.contacts.manager}</small></span><Icon name="arrow-right" size={18} /></button>
         <button className="contact-card card" onClick={() => openTelegram(config.contacts.channel)}><Icon name="package" size={24} /><span><strong>Наш канал</strong><small>@{config.contacts.channel}</small></span><Icon name="arrow-right" size={18} /></button>
+        <button className="contact-card card" onClick={() => openTelegram(reviewContact)}><Icon name="check" size={24} /><span><strong>Отзывы</strong><small>@{reviewContact}</small></span><Icon name="arrow-right" size={18} /></button>
       </section>
     </div>
   );

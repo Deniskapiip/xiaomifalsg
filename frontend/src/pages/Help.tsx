@@ -23,6 +23,12 @@ export function Help({ config }: { config: AppConfig }) {
       <section className="contact-grid" aria-label="Наши контакты">
         <button className="contact-card card card--glow" onClick={() => openTelegram(config.contacts.manager)}><Icon name="send" size={24} /><span><strong>Менеджер</strong><small>@{config.contacts.manager}</small></span><Icon name="arrow-right" size={18} /></button>
         <button className="contact-card card" onClick={() => openTelegram(config.contacts.channel)}><Icon name="package" size={24} /><span><strong>Наш канал</strong><small>@{config.contacts.channel}</small></span><Icon name="arrow-right" size={18} /></button>
+        <button className="contact-card card" onClick={() => openTelegram(config.contacts.review)}><Icon name="check" size={24} /><span><strong>Отзывы</strong><small>@{config.contacts.review}</small></span><Icon name="arrow-right" size={18} /></button>
+      </section>
+      <section className="card card--glow" aria-label="Оставить отзыв">
+        <div className="inline-row"><Icon name="check" size={22} /><h2>Оставьте отзыв</h2></div>
+        <p className="muted">Расскажите, как прошёл ваш заказ: это помогает нам и другим клиентам. Открыть группу отзывов: @{config.contacts.review}.</p>
+        <button className="button button--primary button--block" onClick={() => openTelegram(config.contacts.review)}>Перейти в @{config.contacts.review}<Icon name="external-link" size={18} /></button>
       </section>
       <section className="section">
         <div className="section-heading"><h2>Частые вопросы</h2><span className="chip">{questions.length}</span></div>
