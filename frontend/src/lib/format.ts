@@ -1,5 +1,5 @@
 import { Exact } from './pricing';
-import type { StatusDefinition } from '../api/types';
+import type { StatusDefinition, TariffCurrency } from '../api/types';
 
 const integerFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 
@@ -18,3 +18,10 @@ export function shortDateMsk(value: string): string {
 }
 export function productDomain(value: string): string { try { return new URL(value).hostname.replace(/^www\./, ''); } catch { return 'Ссылка на товар'; } }
 export function statusLabel(value: string, statuses: StatusDefinition[]): string { return statuses.find(status => status.key === value)?.name ?? 'Статус уточняется'; }
+export function currencySymbol(currency: TariffCurrency): string { return currency === 'cny' ? '¥' : '₽'; }
+/** «1 коробка», «3 коробки», «7 коробок». */
+export function boxesLabel(value: number): string {
+  const last = value % 10, lastTwo = value % 100;
+  const word = last === 1 && lastTwo !== 11 ? 'коробка' : [2, 3, 4].includes(last) && ![12, 13, 14].includes(lastTwo) ? 'коробки' : 'коробок';
+  return `${value} ${word}`;
+}

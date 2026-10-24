@@ -87,7 +87,7 @@ async def test_large_money_roundtrip(client, auth_headers, order_payload):
                                 json={"rate_cny_rub": "99999999.9999", "commission_percent": "100", "commission_min_rub": "650"})
     assert response.status_code == 200
     response = await client.put("/api/admin/tariffs/1", headers=owner,
-                                json={"name": "Тестовый тариф", "price_per_kg_rub": "9999999999.99", "is_active": True})
+                                json={"name": "Тестовый тариф", "price_per_kg": "9999999999.99", "is_active": True})
     assert response.status_code == 200
     customer = await auth_headers()
     order_payload.update(price_cny="1000000", quantity=999, weight_kg="1000")

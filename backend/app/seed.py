@@ -15,15 +15,15 @@ async def seed_database(sessions, demo: bool = False):
             db.add(AppSettings(id=1, rate_cny_rub=Decimal("13.5"), commission_percent=Decimal("6.5"), commission_min_rub=650))
         if await db.scalar(select(Tariff.id).limit(1)) is None:
             for index in range(1, 5):
-                db.add(Tariff(name=f"Тариф {index}", price_per_kg_rub=Decimal("0"), is_active=False, sort_order=index))
+                db.add(Tariff(name=f"Тариф {index}", price_per_kg=Decimal("0"), is_active=False, sort_order=index))
             await db.flush()
         if demo:
             tariffs = (await db.scalars(select(Tariff).order_by(Tariff.id).limit(4))).all()
             for index, tariff in enumerate(tariffs, start=1):
                 # Never overwrite an owner's configured tariff.
-                if tariff.price_per_kg_rub == 0 and not tariff.is_active and tariff.name == f"Тариф {index}" and not tariff.description and not tariff.eta_text:
+                if tariff.price_per_kg == 0 and not tariff.is_active and tariff.name == f"Тариф {index}" and not tariff.description and not tariff.eta_text:
                     tariff.name = f"Тариф {index} (демо)"
-                    tariff.price_per_kg_rub = Decimal(1800 + (index - 1) * 200)
+                    tariff.price_per_kg = Decimal(1800 + (index - 1) * 200)
                     tariff.description = "Демонстрационный тариф для проверки. Не является предложением доставки."
                     tariff.eta_text = "Демо: сроки уточняйте у менеджера"
                     tariff.is_active = True

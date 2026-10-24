@@ -3,11 +3,23 @@ from decimal import Decimal, ROUND_CEILING, localcontext
 from app.schemas import PriceOut
 
 
+def rub_per_kg(price_per_kg: Decimal, price_currency: str, rate: Decimal) -> Decimal:
+    """RUB per kg snapshot: a CNY tariff is converted at the current rate and rounded up."""
+    values = (price_per_kg, rate)
+    if any(not isinstance(value, Decimal) or not value.is_finite() for value in values):
+        raise TypeError("Расчёт принимает только конечные Decimal")
+    if price_currency != "cny":
+        return price_per_kg
+    with localcontext() as context:
+        context.prec = 50
+        return (price_per_kg * rate).to_integral_value(rounding=ROUND_CEILING)
+
+
 def calculate(price_cny: Decimal, quantity: int, rate: Decimal, commission_percent: Decimal,
               commission_min_rub: int, tariff_price_per_kg: Decimal, weight_kg: Decimal, *,
               insurance_enabled: bool = False, packing_enabled: bool = False, photo_report_enabled: bool = False,
               insurance_percent: Decimal = Decimal("0"), packing_fee_rub: int = 0,
-              photo_report_fee_rub: int = 0) -> PriceOut:
+              photo_report_fee_rub: int = 0, boxes: int = 1) -> PriceOut:
     values = (price_cny, rate, commission_percent, tariff_price_per_kg, weight_kg)
     if any(not isinstance(value, Decimal) or not value.is_finite() for value in values):
         raise TypeError("Расчёт принимает только конечные Decimal")
@@ -19,7 +31,7 @@ def calculate(price_cny: Decimal, quantity: int, rate: Decimal, commission_perce
         delivery = int((tariff_price_per_kg * weight_kg).to_integral_value(rounding=ROUND_CEILING))
         insurance = int((Decimal(goods) * Decimal(insurance_percent) / Decimal(100)).to_integral_value(
             rounding=ROUND_CEILING)) if insurance_enabled else 0
-    packing = int(packing_fee_rub) if packing_enabled else 0
+    packing = int(packing_fee_rub) * int(boxes) if packing_enabled else 0
     photo_report = int(photo_report_fee_rub) if photo_report_enabled else 0
     extras_total = insurance + packing + photo_report
     return PriceOut(goods_rub=goods, commission_rub=commission, total_rub=goods + commission,

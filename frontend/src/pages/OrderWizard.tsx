@@ -5,13 +5,13 @@ import { ApiError, post, request } from '../api/client';
 import { retryQuery } from '../api/hooks';
 import { useWizard } from '../store/wizard';
 import type { WizardStep } from '../store/wizard';
-import { Exact, calculatePricing } from '../lib/pricing';
-import { decimalValid, firstStepErrors, normalizeDecimal, platformLabel, safeHttpUrl } from '../lib/validation';
+import { Exact, calculatePricing, tariffRubPerKg } from '../lib/pricing';
+import { boxesValid, decimalValid, firstStepErrors, normalizeDecimal, platformLabel, safeHttpUrl } from '../lib/validation';
 import type { DraftFields } from '../lib/validation';
 import { parseShareText } from '../lib/product-share';
 import { platformName, type SharePlatform } from '../lib/platforms';
 import { quoteSummaryText } from '../lib/calc-share';
-import { decimalNumber, money } from '../lib/format';
+import { boxesLabel, currencySymbol, decimalNumber, money } from '../lib/format';
 import { closingConfirmation, copyText, haptic, openTelegram, pasteText, showPopup, useBackButton, useMainButton } from '../lib/telegram';
 import { Icon } from '../components/Icon';
 import { EmptyState, ErrorState, LoadingState } from '../components/UiStates';
@@ -34,6 +34,7 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
   const pending = useWizard(state => state.pending);
   const hydrated = useWizard(state => state.hydrated);
   const patch = useWizard(state => state.patch);
+  const selectTariff = useWizard(state => state.selectTariff);
   const go = useWizard(state => state.go);
   const queryClient = useQueryClient();
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -121,9 +122,12 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
   const selected = config.tariffs.find(tariff => tariff.id === draft.tariff_id);
   const validFirst = Object.keys(firstErrors).length === 0;
   const validWeight = decimalValid(draft.weight_kg, '0.01', '1000', 3);
+  const validBoxes = boxesValid(draft.boxes);
+  const tariffPriceRub = selected ? tariffRubPerKg(selected.price_per_kg, selected.price_currency, config.rate_cny_rub) : '0';
   const serviceOptions = { insurance_percent: config.insurance_percent, packing_fee_rub: config.packing_fee_rub, photo_report_fee_rub: config.photo_report_fee_rub };
   const calcInput: CalcInput | null = validFirst && validWeight && selected ? {
     price_cny: normalizeDecimal(draft.price_cny), quantity: Number(draft.quantity), tariff_id: selected.id, weight_kg: normalizeDecimal(draft.weight_kg),
+    boxes: validBoxes ? Number(draft.boxes) : 1,
     insurance_enabled: draft.insurance_enabled, packing_enabled: draft.packing_enabled, photo_report_enabled: draft.photo_report_enabled,
   } : null;
   const quote = useQuery({ queryKey: ['quote', user.tg_id, calcInput], enabled: step === 4 && !pending && calcInput !== null,
@@ -132,21 +136,26 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
   const receiptInput = pending?.input ?? calcInput;
   const live = validFirst ? calculatePricing({ price_cny: normalizeDecimal(draft.price_cny), quantity: Number(draft.quantity), rate: config.rate_cny_rub,
     commission_percent: config.commission_percent, commission_min_rub: config.commission_min_rub,
-    tariff_price_per_kg: selected?.price_per_kg_rub ?? '0', weight_kg: validWeight ? normalizeDecimal(draft.weight_kg) : '0',
+    tariff_price_per_kg: tariffPriceRub, weight_kg: validWeight ? normalizeDecimal(draft.weight_kg) : '0', boxes: validBoxes ? Number(draft.boxes) : 1,
     insurance_enabled: draft.insurance_enabled, packing_enabled: draft.packing_enabled, photo_report_enabled: draft.photo_report_enabled }, serviceOptions) : null;
   const platform = resolvedPlatform(draft.link, sharePlatform);
   const serviceFee = (value: string) => value === '0' ? 'бесплатно' : money(value);
   const services: { key: ServiceKey; title: string; icon: string; price: string; unit: string; hint: string }[] = [
-    { key: 'insurance_enabled', title: 'Страховка груза', icon: 'shield', price: config.insurance_percent === '0' ? 'бесплатно' : `${decimalNumber(config.insurance_percent, 2)}%`, unit: 'от стоимости товара', hint: 'Компенсация при повреждении или утере товара на складе и в пути.' },
-    { key: 'packing_enabled', title: 'Обрешётка / упаковка', icon: 'package', price: serviceFee(config.packing_fee_rub), unit: 'за заказ', hint: 'Дополнительная защита товара при международной перевозке.' },
+    ...(selected?.insurance_available ? [{ key: 'insurance_enabled' as const, title: 'Страховка груза', icon: 'shield', price: config.insurance_percent === '0' ? 'бесплатно' : `${decimalNumber(config.insurance_percent, 2)}%`, unit: 'от стоимости товара', hint: 'Компенсация при повреждении или утере товара на складе и в пути.' }] : []),
+    { key: 'packing_enabled', title: 'Обрешётка / упаковка', icon: 'package', price: serviceFee(config.packing_fee_rub), unit: 'за коробку', hint: 'Дополнительная защита товара при международной перевозке.' },
     { key: 'photo_report_enabled', title: 'Фотоотчёт на складе', icon: 'camera', price: serviceFee(config.photo_report_fee_rub), unit: 'за заказ', hint: 'Фото товара и упаковки перед отправкой из Китая.' },
   ];
+  useEffect(() => {
+    // A restored draft may keep insurance selected while its tariff no longer offers it.
+    if (!hydrated || pending || !selected) return;
+    if (!selected.insurance_available && draft.insurance_enabled) patch({ insurance_enabled: false });
+  }, [draft.insurance_enabled, hydrated, patch, pending, selected]);
 
   function back(): void { if (pasteHint) { setPasteHint(false); return; } if (busy || pending) return; if (step === 1) onNavigate({ name: 'home' }); else go((step - 1) as WizardStep); setError(''); }
   useBackButton(!busy && !pending ? back : null);
   function blur(field: keyof DraftFields): void {
     setTouched(values => ({ ...values, [field]: true }));
-    if (field === 'weight_kg' ? !validWeight : Boolean(firstErrors[field])) haptic('error');
+    if (field === 'weight_kg' ? !validWeight : field === 'boxes' ? !validBoxes : Boolean(firstErrors[field])) haptic('error');
   }
   function change(field: keyof DraftFields, value: string): void {
     if (field === 'link') {
@@ -170,6 +179,10 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
   function weight(delta: string): void {
     const current = validWeight ? new Exact(normalizeDecimal(draft.weight_kg)) : new Exact('0.1');
     patch({ weight_kg: Exact.min('1000', Exact.max('0.01', current.plus(delta))).toFixed() }); haptic('selection');
+  }
+  function boxes(delta: number): void {
+    const current = /^\d{1,2}$/.test(draft.boxes) ? Number(draft.boxes) : 1;
+    patch({ boxes: String(Math.max(1, Math.min(99, current + delta))) }); haptic('selection');
   }
   function toggleService(key: ServiceKey): void {
     if (pending) return;
@@ -199,7 +212,7 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
     if (shareBusy || !mounted.current) return;
     setShareBusy(true);
     const snapshot: DraftFields = { ...draft, link: 'link' in input ? input.link : draft.link,
-      price_cny: input.price_cny, quantity: String(input.quantity), weight_kg: input.weight_kg,
+      price_cny: input.price_cny, quantity: String(input.quantity), weight_kg: input.weight_kg, boxes: String(input.boxes),
       insurance_enabled: input.insurance_enabled, packing_enabled: input.packing_enabled, photo_report_enabled: input.photo_report_enabled };
     const text = quoteSummaryText({ quote: value, draft: snapshot, config });
     const copied = await copyText(text);
@@ -216,8 +229,9 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
   async function next(): Promise<void> {
     if (!mounted.current || useWizard.getState().scope !== user.tg_id || !useWizard.getState().hydrated || submitting.current || busy || !hydrated) return;
     if (step < 4) {
-      if ((step === 1 && !validFirst) || (step === 2 && !selected) || (step === 3 && !validWeight)) {
-        setTouched(values => ({ ...values, ...Object.fromEntries((step === 1 ? Object.keys(firstErrors) : [step === 2 ? 'tariff_id' : 'weight_kg']).map(field => [field, true])) }));
+      if ((step === 1 && !validFirst) || (step === 2 && !selected) || (step === 3 && (!validWeight || (draft.packing_enabled && !validBoxes)))) {
+        const fields = step === 1 ? Object.keys(firstErrors) : step === 2 ? ['tariff_id'] : [...(!validWeight ? ['weight_kg'] : []), ...(!validBoxes ? ['boxes'] : [])];
+        setTouched(values => ({ ...values, ...Object.fromEntries(fields.map(field => [field, true])) }));
         setValidationAttempt(value => value + 1);
         haptic('error'); return;
       }
@@ -289,8 +303,8 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
 
     {step === 2 && <>
       {config.tariffs.length === 0 ? <EmptyState title="Тарифы пока не настроены" description={role === 'owner' ? 'Заполните и включите тарифы в админке, чтобы клиенты могли оформить заказ.' : 'Напишите менеджеру. Выбрать тариф можно будет после настройки.'} actionLabel={role === 'owner' ? 'Настроить тарифы' : 'Написать менеджеру'} onAction={() => role === 'owner' ? onNavigate({ name: 'admin', view: 'tariffs' }) : openTelegram(config.contacts.manager)} />
-        : <div className="tariff-grid" role="radiogroup" aria-label="Тариф доставки" aria-invalid={touched.tariff_id && !selected}>{config.tariffs.map(tariff => <button type="button" key={tariff.id} role="radio" aria-checked={selected?.id === tariff.id} className={`tariff-card ${selected?.id === tariff.id ? 'is-selected' : ''}`} onClick={() => { if (draft.tariff_id !== tariff.id) { patch({ tariff_id: tariff.id }); haptic('selection'); } }}>
-          <div className="tariff-card__heading"><strong>{tariff.name}</strong><span className="tariff-radio" aria-hidden="true">{selected?.id === tariff.id && <Icon name="check" size={16} />}</span></div><p className="tariff-card__price">{decimalNumber(tariff.price_per_kg_rub, 2)} ₽ <small>/ кг</small></p><p>{tariff.eta_text || 'Сроки уточняйте у менеджера'}</p><p className="field-hint">{tariff.description || 'Условия уточняйте у менеджера'}</p>
+        : <div className="tariff-grid" role="radiogroup" aria-label="Тариф доставки" aria-invalid={touched.tariff_id && !selected}>{config.tariffs.map(tariff => <button type="button" key={tariff.id} role="radio" aria-checked={selected?.id === tariff.id} className={`tariff-card ${selected?.id === tariff.id ? 'is-selected' : ''}`} onClick={() => { if (draft.tariff_id !== tariff.id) { selectTariff(tariff); haptic('selection'); } }}>
+          <div className="tariff-card__heading"><strong>{tariff.name}</strong><span className="tariff-radio" aria-hidden="true">{selected?.id === tariff.id && <Icon name="check" size={16} />}</span></div><p className="tariff-card__price">{decimalNumber(tariff.price_per_kg, 2)} {currencySymbol(tariff.price_currency)} <small>/ кг</small></p>{tariff.price_currency === 'cny' && <p className="field-hint">≈ {decimalNumber(tariffRubPerKg(tariff.price_per_kg, 'cny', config.rate_cny_rub), 2)} ₽ / кг по курсу {decimalNumber(config.rate_cny_rub, 4)}</p>}<p>{tariff.eta_text || 'Сроки уточняйте у менеджера'}</p><p className="field-hint">{tariff.description || 'Условия уточняйте у менеджера'}</p>{tariff.insurance_available && <p className="field-hint">Страховка груза доступна</p>}
         </button>)}</div>}
       {touched.tariff_id && !selected && config.tariffs.length > 0 && <p className="field-error" role="alert">Выберите тариф доставки.</p>}
       <details className="accordion"><summary>Чем отличаются тарифы?</summary><p>У каждого тарифа своя цена за килограмм, описание и условия. Выберите подходящий вариант по информации в карточке. Если сомневаетесь, уточните детали у менеджера.</p></details>
@@ -310,6 +324,7 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
             <span className="field-hint">{service.hint}</span>
           </button>)}
         </div>
+        {draft.packing_enabled && <div className="field"><label className="field-label" htmlFor="packing-boxes">Количество коробок</label><div className="quantity-control"><button type="button" className="icon-button" onClick={() => boxes(-1)} aria-label="Уменьшить количество коробок">−</button><input id="packing-boxes" className="input" inputMode="numeric" value={draft.boxes} maxLength={2} onChange={event => change('boxes', event.target.value)} onBlur={() => blur('boxes')} aria-invalid={touched.boxes && !validBoxes} /><button type="button" className="icon-button" onClick={() => boxes(1)} aria-label="Увеличить количество коробок">+</button></div>{touched.boxes && !validBoxes && <p className="field-error">Коробки: целое число от 1 до 99.</p>}<p className="field-hint">Обрешётка: {money(config.packing_fee_rub)} за коробку, итого {money(live?.packing_rub ?? '0')}.</p></div>}
         <p className="field-hint">Выбранные услуги попадут в расчёт и в карточку заказа. Окончательные суммы подтвердит менеджер.</p>
       </section>
       {live && validWeight && <section className="card card--muted"><p className="field-hint">Доставка ориентировочно</p><strong className="money">{money(live.delivery_estimate_rub)}</strong><p className="field-hint">{selected?.name} · ~{decimalNumber(normalizeDecimal(draft.weight_kg), 3)} кг{live.extras_total_rub !== '0' ? ` · доп. услуги ${money(live.extras_total_rub)}` : ''}</p></section>}
@@ -320,7 +335,7 @@ export function OrderWizard({ config, user, role = 'client', onNavigate }: { con
         <section className="card card--glow review-total"><p className="eyebrow">К ОПЛАТЕ ЗА ВЫКУП</p><strong className="money money--hero">{money(receipt.total_with_extras_rub)}</strong><p className="field-hint">Сумма товара, комиссии и доп. услуг</p>
           <dl className="breakdown"><div className="breakdown-row"><dt>Товар <small>{decimalNumber(receiptInput.price_cny, 2)} ¥ × {receiptInput.quantity} × {decimalNumber(receipt.rate, 4)}</small></dt><dd>{money(receipt.goods_rub)}</dd></div><div className="breakdown-row"><dt>Комиссия <small>{receipt.commission_is_minimum ? 'Минимальная' : `${decimalNumber(receipt.commission_percent, 2)}%`}</small></dt><dd>{money(receipt.commission_rub)}</dd></div>
             {receiptInput.insurance_enabled && <div className="breakdown-row"><dt>Страховка груза</dt><dd>{money(receipt.insurance_rub)}</dd></div>}
-            {receiptInput.packing_enabled && <div className="breakdown-row"><dt>Обрешётка / упаковка</dt><dd>{money(receipt.packing_rub)}</dd></div>}
+            {receiptInput.packing_enabled && <div className="breakdown-row"><dt>Обрешётка / упаковка <small>{money(config.packing_fee_rub)} × {boxesLabel(receiptInput.boxes)}</small></dt><dd>{money(receipt.packing_rub)}</dd></div>}
             {receiptInput.photo_report_enabled && <div className="breakdown-row"><dt>Фотоотчёт на складе</dt><dd>{money(receipt.photo_report_rub)}</dd></div>}
             {receipt.extras_total_rub !== '0' && <div className="breakdown-row"><dt>Сумма доп. услуг</dt><dd>{money(receipt.extras_total_rub)}</dd></div>}
             <div className="breakdown-row breakdown-row--total"><dt>Итого</dt><dd>{money(receipt.total_with_extras_rub)}</dd></div></dl>

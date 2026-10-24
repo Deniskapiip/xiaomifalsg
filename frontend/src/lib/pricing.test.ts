@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import cases from '../../../shared/pricing_cases.json';
-import { calculatePricing, NO_SERVICE_OPTIONS, type PricingInputs } from './pricing';
+import { calculatePricing, NO_SERVICE_OPTIONS, tariffRubPerKg, type PricingInputs } from './pricing';
 
 describe('pricing parity with the backend shared cases', () => {
   it.each(cases)('$name', (testCase) => {
@@ -53,5 +53,29 @@ describe('pricing parity with the backend shared cases', () => {
     expect(priced).toEqual(calculatePricing(input, NO_SERVICE_OPTIONS));
     expect(priced.extras_total_rub).toBe('0');
     expect(priced.total_with_extras_rub).toBe(priced.total_rub);
+  });
+
+  it('converts a yuan tariff into RUB per kg through the current rate', () => {
+    expect(tariffRubPerKg('100', 'cny', '13.5')).toBe('1350');
+    expect(tariffRubPerKg('1800', 'rub', '13.5')).toBe('1800');
+    expect(calculatePricing({ price_cny: '300', quantity: 1, rate: '13.5', commission_percent: '6.5', commission_min_rub: '650',
+      tariff_price_per_kg: tariffRubPerKg('100', 'cny', '13.5'), weight_kg: '2.3' }).delivery_estimate_rub).toBe('3105');
+  });
+
+  it('charges the packing fee for every box', () => {
+    const input: PricingInputs = { price_cny: '300', quantity: 1, rate: '13.5', commission_percent: '6.5', commission_min_rub: '650',
+      tariff_price_per_kg: tariffRubPerKg('100', 'cny', '13.5'), weight_kg: '2.3', boxes: 3, packing_enabled: true, photo_report_enabled: true };
+    const result = calculatePricing(input, { insurance_percent: '10', packing_fee_rub: '299', photo_report_fee_rub: '150' });
+    expect(result.delivery_estimate_rub).toBe('3105');
+    expect(result.insurance_rub).toBe('0');
+    expect(result.packing_rub).toBe('897');
+    expect(result.photo_report_rub).toBe('150');
+    expect(result.extras_total_rub).toBe('1047');
+    expect(result.total_with_extras_rub).toBe('5747');
+  });
+
+  it('treats a single box as the default when the box count is unknown', () => {
+    const input: PricingInputs = { price_cny: '100', quantity: 1, rate: '13.5', commission_percent: '0', commission_min_rub: '0', tariff_price_per_kg: '100', weight_kg: '1', packing_enabled: true };
+    expect(calculatePricing(input, { insurance_percent: '0', packing_fee_rub: '299', photo_report_fee_rub: '0' }).packing_rub).toBe('299');
   });
 });

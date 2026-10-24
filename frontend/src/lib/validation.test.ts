@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { decimalValid, firstStepErrors, normalizeDecimal, platformLabel, safeHttpUrl, type DraftFields } from './validation';
+import { boxesValid, decimalValid, firstStepErrors, normalizeDecimal, platformLabel, safeHttpUrl, type DraftFields } from './validation';
 
-const validDraft: DraftFields = { link: 'https://shop.example/item/42', price_cny: '300', quantity: '1', item_title: '', comment: '', tariff_id: 1, weight_kg: '2.3',
+const validDraft: DraftFields = { link: 'https://shop.example/item/42', price_cny: '300', quantity: '1', item_title: '', comment: '', tariff_id: 1, weight_kg: '2.3', boxes: '1',
   insurance_enabled: false, packing_enabled: false, photo_report_enabled: false };
 
 describe('order input validation', () => {
@@ -56,5 +56,12 @@ describe('order input validation', () => {
 
   it('does not treat extra service flags as invalid input', () => {
     expect(firstStepErrors({ ...validDraft, insurance_enabled: true, packing_enabled: true, photo_report_enabled: true })).toEqual({});
+  });
+
+  it('accepts packing box counts from 1 to 99 only', () => {
+    expect(boxesValid('1')).toBe(true);
+    expect(boxesValid('99')).toBe(true);
+    for (const boxes of ['0', '100', '01', '1.5', '', 'abc']) expect(boxesValid(boxes)).toBe(false);
+    expect(firstStepErrors({ ...validDraft, boxes: '0' })).toEqual({});
   });
 });

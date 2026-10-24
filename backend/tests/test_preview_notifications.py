@@ -91,7 +91,8 @@ async def test_real_signed_orders_keep_client_and_admin_notifications(
     async with app.state.sessions() as db:
         event = await db.scalar(select(OrderEvent).where(OrderEvent.order_id == order["id"], OrderEvent.type == "created"))
         assert event.payload == {"options": {"insurance": False, "packing": False, "photo_report": False},
-                                 "extras_total_rub": "0"}
+                                 "extras_total_rub": "0", "boxes": 1,
+                                 "tariff_price_currency": "rub", "tariff_price_value": "1800.00"}
         assert await db.scalar(select(func.count()).select_from(NotificationJob)) == 3
     bot = AsyncMock()
     worker = NotificationWorker(bot, app.state.sessions, app.state.settings, app.state.write_lock)

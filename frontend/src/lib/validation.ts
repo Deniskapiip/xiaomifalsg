@@ -3,6 +3,7 @@ import { platformFromUrl, platformName } from './platforms';
 
 export interface DraftFields {
   link: string; price_cny: string; quantity: string; item_title: string; comment: string; tariff_id: number | null; weight_kg: string;
+  boxes: string;
   insurance_enabled: boolean; packing_enabled: boolean; photo_report_enabled: boolean;
 }
 export function normalizeDecimal(value: string): string { return value.trim().replace(',', '.'); }
@@ -14,6 +15,7 @@ export function decimalValid(value: string, min: string, max: string, places: nu
   const decimal = new Exact(normalized);
   return decimal.gte(min) && decimal.lte(max);
 }
+export function boxesValid(value: string): boolean { return /^[1-9]\d?$/.test(value) && Number(value) <= 99; }
 export function safeHttpUrl(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > 2000 || !/^https?:\/\/[^/\\]/i.test(trimmed) || /\\|\s|[\u0000-\u001f]/.test(trimmed)) return null;

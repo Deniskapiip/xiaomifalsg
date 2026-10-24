@@ -112,6 +112,10 @@ async def test_tracking_notification_sent_to_client(client, app, auth_headers, o
 
 
 async def test_admin_notification_shows_platform_options_and_track(client, app, auth_headers, order_payload):
+    owner = await auth_headers(111)
+    tariff = await client.put("/api/admin/tariffs/1", headers=owner, json={
+        "name": "Тариф 1 (демо)", "price_per_kg": "1800", "insurance_available": True, "is_active": True})
+    assert tariff.status_code == 200, tariff.text
     order_payload.update(link="https://www.dewu.com/item.htm?id=42", insurance_enabled=True,
                          packing_enabled=True, photo_report_enabled=True)
     customer = await auth_headers(333)
@@ -124,5 +128,5 @@ async def test_admin_notification_shows_platform_options_and_track(client, app, 
         client_user = await db.get(User, stored.user_id)
         content = texts.admin_notification(stored, client_user, app.state.settings)
     assert "Площадка: Poizon / Dewu" in content
-    assert "Опции: страховка 81 ₽, упаковка 300 ₽, фотоотчёт 150 ₽ · доплата 531 ₽" in content
+    assert "Опции: страховка 405 ₽, упаковка 299 ₽, фотоотчёт 150 ₽ · доплата 854 ₽" in content
     assert "Трек-номер: LP001234567CN" in content

@@ -6,12 +6,12 @@ type Wizard = (typeof import('./wizard'))['useWizard'];
 let wizard: Wizard;
 let stored: Map<string, string>;
 
-const fields: DraftFields = { link: 'https://tb.cn/item42', price_cny: '300,00', quantity: '1', item_title: 'Кроссовки', comment: 'Размер 42', tariff_id: 1, weight_kg: '2,300',
+const fields: DraftFields = { link: 'https://tb.cn/item42', price_cny: '300,00', quantity: '1', item_title: 'Кроссовки', comment: 'Размер 42', tariff_id: 1, weight_kg: '2,300', boxes: '3',
   insurance_enabled: true, packing_enabled: false, photo_report_enabled: true };
 const quote: Quote = { goods_rub: '4050', commission_rub: '650', total_rub: '4700', delivery_estimate_rub: '4140', commission_is_minimum: true,
   insurance_rub: '81', packing_rub: '0', photo_report_rub: '150', extras_total_rub: '231', total_with_extras_rub: '4931',
   rate: '13.5', commission_percent: '6.5', commission_min_rub: '650', tariff_name: 'Демо', tariff_price_per_kg: '1800' };
-const input = { idempotency_key: '00000000-0000-4000-8000-000000000001', link: fields.link, price_cny: '300.00', quantity: 1, item_title: fields.item_title, comment: fields.comment, tariff_id: 1, weight_kg: '2.300',
+const input = { idempotency_key: '00000000-0000-4000-8000-000000000001', link: fields.link, price_cny: '300.00', quantity: 1, item_title: fields.item_title, comment: fields.comment, tariff_id: 1, weight_kg: '2.300', boxes: 3,
   insurance_enabled: true, packing_enabled: false, photo_report_enabled: true };
 function envelope(value: unknown, savedAt = 1) { return JSON.stringify({ savedAt, value }); }
 
@@ -37,6 +37,7 @@ describe('persistent order submission state', () => {
     expect(wizard.getState().step).toBe(4);
     expect(pending.input.price_cny).toBe('300.00');
     expect(pending.input.weight_kg).toBe('2.300');
+    expect(pending.input.boxes).toBe(3);
     expect(pending.input.insurance_enabled).toBe(true);
     expect(pending.input.packing_enabled).toBe(false);
     expect(wizard.getState().draft.comment).toBe('Размер 42');
@@ -58,7 +59,21 @@ describe('persistent order submission state', () => {
     expect(wizard.getState().draft.insurance_enabled).toBe(false);
     expect(wizard.getState().draft.packing_enabled).toBe(false);
     expect(wizard.getState().draft.photo_report_enabled).toBe(false);
+    expect(wizard.getState().draft.boxes).toBe('1');
     expect(wizard.getState().step).toBe(3);
+  });
+
+  it('drops insurance when a tariff without insurance is selected and keeps it otherwise', async () => {
+    await wizard.getState().hydrate(101);
+    wizard.getState().patch(fields);
+    expect(wizard.getState().draft.insurance_enabled).toBe(true);
+    wizard.getState().selectTariff({ id: 2, insurance_available: false });
+    expect(wizard.getState().draft.tariff_id).toBe(2);
+    expect(wizard.getState().draft.insurance_enabled).toBe(false);
+    wizard.getState().patch({ insurance_enabled: true });
+    wizard.getState().selectTariff({ id: 3, insurance_available: true });
+    expect(wizard.getState().draft.tariff_id).toBe(3);
+    expect(wizard.getState().draft.insurance_enabled).toBe(true);
   });
 
   it('only clears the draft for the matching verified user and submission key', async () => {
@@ -91,6 +106,8 @@ describe('persistent order submission state', () => {
   it.each([
     ['string quantity', { quantity: '1' }],
     ['too large quantity', { quantity: 1000 }],
+    ['zero boxes', { boxes: 0 }],
+    ['too many boxes', { boxes: 100 }],
     ['overlong title', { item_title: 'a'.repeat(201) }],
     ['overlong link', { link: 'https://example.com/' + 'a'.repeat(2000) }],
     ['string tariff', { tariff_id: '1' }],

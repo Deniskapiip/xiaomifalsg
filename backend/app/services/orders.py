@@ -9,7 +9,7 @@ from app.platforms import identify_platform
 from app.schemas import (AdminEventOut, AdminOrderOut, EventOut, NotificationOut, OrderCreate, OrderOut, StatusIn,
                          TrackSetIn, UserOut)
 from app.services.notifications import is_local_preview_order
-from app.services.pricing import calculate
+from app.services.pricing import calculate, rub_per_kg
 from app.services.settings import active_tariff, get_app_settings
 from app.statuses import Status, requires_confirmation
 
@@ -57,19 +57,24 @@ async def create_order(db, data: OrderCreate, user: User, settings):
         raise AppError("ORDER_RATE_LIMITED", "Можно оформить не более 10 заказов за час. Подождите перед новым заказом.", 429)
     tariff = await active_tariff(db, data.tariff_id)
     current = await get_app_settings(db)
+    price_per_kg_rub = rub_per_kg(tariff.price_per_kg, tariff.price_currency, current.rate_cny_rub)
+    insurance_enabled = data.insurance_enabled and tariff.insurance_available
     prices = calculate(data.price_cny, data.quantity, current.rate_cny_rub, current.commission_percent,
-                       current.commission_min_rub, tariff.price_per_kg_rub, data.weight_kg,
-                       insurance_enabled=data.insurance_enabled, packing_enabled=data.packing_enabled,
+                       current.commission_min_rub, price_per_kg_rub, data.weight_kg,
+                       insurance_enabled=insurance_enabled, packing_enabled=data.packing_enabled,
                        photo_report_enabled=data.photo_report_enabled, insurance_percent=settings.insurance_percent,
-                       packing_fee_rub=settings.packing_fee_rub, photo_report_fee_rub=settings.photo_report_fee_rub)
+                       packing_fee_rub=settings.packing_fee_rub, photo_report_fee_rub=settings.photo_report_fee_rub,
+                       boxes=data.boxes)
     order = Order(user_id=user.id, idempotency_key=str(data.idempotency_key), link=data.link,
                   platform=identify_platform(data.link).value, item_title=data.item_title, price_cny=data.price_cny,
                   quantity=data.quantity, comment=data.comment, tariff_id=tariff.id, tariff_name=tariff.name,
-                  tariff_price_per_kg=tariff.price_per_kg_rub, rate=current.rate_cny_rub,
+                  tariff_price_per_kg=price_per_kg_rub, tariff_price_currency=tariff.price_currency,
+                  tariff_price_value=tariff.price_per_kg, rate=current.rate_cny_rub,
                   commission_percent=current.commission_percent, commission_min_rub=current.commission_min_rub,
-                  weight_kg=data.weight_kg, goods_rub=prices.goods_rub, commission_rub=prices.commission_rub,
-                  total_rub=prices.total_rub, delivery_estimate_rub=prices.delivery_estimate_rub, status=Status.processing,
-                  insurance_enabled=data.insurance_enabled, packing_enabled=data.packing_enabled,
+                  weight_kg=data.weight_kg, boxes=data.boxes, goods_rub=prices.goods_rub,
+                  commission_rub=prices.commission_rub, total_rub=prices.total_rub,
+                  delivery_estimate_rub=prices.delivery_estimate_rub, status=Status.processing,
+                  insurance_enabled=insurance_enabled, packing_enabled=data.packing_enabled,
                   photo_report_enabled=data.photo_report_enabled, insurance_rub=prices.insurance_rub,
                   packing_rub=prices.packing_rub, photo_report_rub=prices.photo_report_rub,
                   extras_total_rub=prices.extras_total_rub, total_with_extras_rub=prices.total_with_extras_rub)
@@ -77,9 +82,11 @@ async def create_order(db, data: OrderCreate, user: User, settings):
     await db.flush()
     order.public_no = f"TC-{order.id:06d}"
     local_preview = settings.dev_mode and user.tg_id == settings.dev_user_tg_id
-    payload = {"options": {"insurance": data.insurance_enabled, "packing": data.packing_enabled,
+    payload = {"options": {"insurance": insurance_enabled, "packing": data.packing_enabled,
                            "photo_report": data.photo_report_enabled},
-               "extras_total_rub": str(prices.extras_total_rub)}
+               "extras_total_rub": str(prices.extras_total_rub), "boxes": data.boxes,
+               "tariff_price_currency": tariff.price_currency,
+               "tariff_price_value": str(tariff.price_per_kg)}
     if local_preview:
         payload["local_preview"] = True
     event = OrderEvent(order_id=order.id, actor_user_id=user.id, type="created", to_status=Status.processing,

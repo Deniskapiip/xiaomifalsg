@@ -63,8 +63,8 @@ class Settings(BaseSettings):
     owner_username: str = "ZontikTech"
     manager_username: str = "TaojiBuy"
     channel_username: str = "taojicn"
-    insurance_percent: Decimal = Field(default=Decimal("2"), ge=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2)
-    packing_fee_rub: int = Field(default=300, ge=0, le=1_000_000_000)
+    insurance_percent: Decimal = Field(default=Decimal("10"), ge=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2)
+    packing_fee_rub: int = Field(default=299, ge=0, le=1_000_000_000)
     photo_report_fee_rub: int = Field(default=150, ge=0, le=1_000_000_000)
 
     @field_validator("bot_proxy_url")

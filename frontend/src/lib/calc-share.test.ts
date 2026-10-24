@@ -10,7 +10,7 @@ const config: AppConfig = {
 };
 const draft: DraftFields = {
   link: 'https://item.taobao.com/item.htm?id=1', price_cny: '300', quantity: '2', item_title: 'Кроссовки',
-  comment: '', tariff_id: 1, weight_kg: '2.3', insurance_enabled: true, packing_enabled: true, photo_report_enabled: false,
+  comment: '', tariff_id: 1, weight_kg: '2.3', boxes: '1', insurance_enabled: true, packing_enabled: true, photo_report_enabled: false,
 };
 const quote: Quote = {
   goods_rub: '8100', commission_rub: '650', total_rub: '8750', delivery_estimate_rub: '4140', commission_is_minimum: true,

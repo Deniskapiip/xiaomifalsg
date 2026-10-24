@@ -22,7 +22,7 @@ export function AdminPanel({ config, role, screen, onNavigate }: {
   if (screen.name === 'admin-order') body = <AdminOrderDetails key={screen.id} config={config} orderId={screen.id} filters={screen.filters} onNavigate={onNavigate} />;
   else if (view === 'orders') body = <AdminOrders config={config} filters={screen.filters ?? {}} onNavigate={onNavigate} />;
   else if (view === 'settings' && role === 'owner') body = <AdminSettings onNavigate={onNavigate} />;
-  else if (view === 'tariffs' && role === 'owner') body = <AdminTariffs onNavigate={onNavigate} />;
+  else if (view === 'tariffs' && role === 'owner') body = <AdminTariffs onNavigate={onNavigate} rate={config.rate_cny_rub} />;
   else body = <AdminDashboard config={config} role={role} onNavigate={onNavigate} />;
   return <AdminFrame role={role} view={view} onNavigate={onNavigate}>{body}</AdminFrame>;
 }

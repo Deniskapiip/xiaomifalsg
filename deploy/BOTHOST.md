@@ -46,7 +46,7 @@ Bothost сам добавляет `BOT_TOKEN`, `DOMAIN`, `PORT`, `BOT_ID`, `USER
 | `WEBHOOK_SECRET_TOKEN` | необязательно: сгенерируется автоматически при пустом/невалидном значении |
 | `OWNER_USERNAME` / `MANAGER_USERNAME` / `CHANNEL_USERNAME` | публичные контакты |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` |
-| `INSURANCE_PERCENT` / `PACKING_FEE_RUB` / `PHOTO_REPORT_FEE_RUB` | цены доп. услуг (по умолчанию 2 / 300 / 150) |
+| `INSURANCE_PERCENT` / `PACKING_FEE_RUB` / `PHOTO_REPORT_FEE_RUB` | цены доп. услуг: 10% страховки (только на тарифах с флажком страховки), 299 ₽ за коробку обрешётки, 150 ₽ фотоотчёт |
 
 Опционально: `DATABASE_URL` (по умолчанию `sqlite+aiosqlite:////app/data/taoji.db`), `WEBAPP_URL` (по умолчанию `https://$DOMAIN`), `ENV`/`BOT_MODE`.
 

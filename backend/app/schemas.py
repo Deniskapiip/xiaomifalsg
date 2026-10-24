@@ -70,6 +70,7 @@ class CalcIn(Input):
     quantity: StrictInt = Field(ge=1, le=999)
     tariff_id: StrictInt = Field(gt=0)
     weight_kg: Decimal = Field(ge=Decimal("0.01"), le=Decimal("1000"), max_digits=8, decimal_places=3)
+    boxes: StrictInt = Field(default=1, ge=1, le=99)
     insurance_enabled: bool = False
     packing_enabled: bool = False
     photo_report_enabled: bool = False
@@ -140,12 +141,14 @@ class CalcOut(PriceOut):
 
 class TariffIn(Input):
     name: str = Field(min_length=1, max_length=100)
-    price_per_kg_rub: Decimal = Field(ge=Decimal("0"), lt=Decimal("10000000000"), max_digits=12, decimal_places=2)
+    price_per_kg: Decimal = Field(ge=Decimal("0"), lt=Decimal("10000000000"), max_digits=12, decimal_places=2)
+    price_currency: Literal["rub", "cny"] = "rub"
+    insurance_available: bool = False
     eta_text: str = Field(default="", max_length=200)
     description: str = Field(default="", max_length=1000)
     is_active: bool = False
     sort_order: StrictInt = Field(default=0, ge=0, le=10000)
-    _price = field_validator("price_per_kg_rub", mode="before")(exact_decimal)
+    _price = field_validator("price_per_kg", mode="before")(exact_decimal)
 
     @field_validator("name")
     @classmethod
@@ -156,7 +159,7 @@ class TariffIn(Input):
 
     @model_validator(mode="after")
     def active_price(self):
-        if self.is_active and self.price_per_kg_rub <= 0:
+        if self.is_active and self.price_per_kg <= 0:
             raise ValueError("У активного тарифа цена должна быть больше нуля")
         return self
 
@@ -164,7 +167,9 @@ class TariffIn(Input):
 class TariffOut(Output):
     id: int
     name: str
-    price_per_kg_rub: Decimal
+    price_per_kg: Decimal
+    price_currency: str
+    insurance_available: bool
     eta_text: str
     description: str
     is_active: bool
@@ -221,10 +226,13 @@ class OrderOut(Output):
     tariff_id: int
     tariff_name: str
     tariff_price_per_kg: Decimal
+    tariff_price_currency: str = "rub"
+    tariff_price_value: Decimal = Decimal("0")
     rate: Decimal
     commission_percent: Decimal
     commission_min_rub: int
     weight_kg: Decimal
+    boxes: int = 1
     goods_rub: int
     commission_rub: int
     total_rub: int

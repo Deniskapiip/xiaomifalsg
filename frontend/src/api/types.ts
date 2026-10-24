@@ -1,7 +1,11 @@
 export type Role = 'client' | 'manager' | 'owner';
 export interface User { id: number; tg_id: number; username: string | null; first_name: string; last_name: string | null; can_write: boolean }
 export interface AuthResponse { access_token: string; token_type: string; expires_in: number; user: User; role: Role }
-export interface Tariff { id: number; name: string; price_per_kg_rub: string; eta_text: string; description: string; is_active: boolean; sort_order: number; created_at: string; updated_at: string }
+export type TariffCurrency = 'rub' | 'cny';
+export interface Tariff {
+  id: number; name: string; price_per_kg: string; price_currency: TariffCurrency; insurance_available: boolean;
+  eta_text: string; description: string; is_active: boolean; sort_order: number; created_at: string; updated_at: string;
+}
 export interface StatusDefinition { key: string; name: string; icon: string; stage: number | null; order: number; terminal: boolean }
 export interface AppConfig {
   rate_cny_rub: string; rate_updated_at: string; commission_percent: string; commission_min_rub: string;
@@ -11,8 +15,9 @@ export interface AppConfig {
 export interface OrderEvent { id: number; type: string; from_status: string | null; to_status: string | null; payload: Record<string, unknown>; created_at: string }
 export interface Order {
   id: number; public_no: string; link: string; platform: string; item_title: string; price_cny: string; quantity: number; comment: string;
-  tariff_id: number; tariff_name: string; tariff_price_per_kg: string; rate: string; commission_percent: string; commission_min_rub: string;
-  weight_kg: string; goods_rub: string; commission_rub: string; total_rub: string; delivery_estimate_rub: string; delivery_final_rub: string | null;
+  tariff_id: number; tariff_name: string; tariff_price_per_kg: string; tariff_price_currency: TariffCurrency; tariff_price_value: string;
+  rate: string; commission_percent: string; commission_min_rub: string;
+  weight_kg: string; boxes: number; goods_rub: string; commission_rub: string; total_rub: string; delivery_estimate_rub: string; delivery_final_rub: string | null;
   insurance_enabled: boolean; packing_enabled: boolean; photo_report_enabled: boolean;
   insurance_rub: string; packing_rub: string; photo_report_rub: string; extras_total_rub: string; total_with_extras_rub: string;
   track_number: string | null;
@@ -20,7 +25,7 @@ export interface Order {
 }
 export interface OrderPage { items: Order[]; total: number; limit: number; offset: number }
 export interface CalcInput {
-  price_cny: string; quantity: number; tariff_id: number; weight_kg: string;
+  price_cny: string; quantity: number; tariff_id: number; weight_kg: string; boxes: number;
   insurance_enabled: boolean; packing_enabled: boolean; photo_report_enabled: boolean;
 }
 export interface OrderInput extends CalcInput { idempotency_key: string; link: string; item_title: string; comment: string }

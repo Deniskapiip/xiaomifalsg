@@ -57,8 +57,12 @@
   `insurance_enabled`, `packing_enabled`, `photo_report_enabled`,
   `insurance_rub`, `packing_rub`, `photo_report_rub`, `extras_total_rub`,
   `total_with_extras_rub`, `track_number` + индекс `ix_orders_track_number`. Есть downgrade.
-- Цены услуг — только из окружения: `INSURANCE_PERCENT` (по умолчанию 2), `PACKING_FEE_RUB` (300),
-  `PHOTO_REPORT_FEE_RUB` (150). Они отдаются в `/api/config`, чтобы клиент и сервер считали одинаково.
+- Цена тарифа задаётся в рублях или юанях (`price_currency`): юани пересчитываются по курсу
+  на момент оформления, в заказ сохраняется исходное значение и RUB-снимок.
+- Страховка доступна только на тарифах с флажком `insurance_available` (например, «Китай - Благовещенск»),
+  процент — `INSURANCE_PERCENT` (по умолчанию 10). Обрешётка — `PACKING_FEE_RUB` за коробку (299),
+  количество коробок указывает клиент. Фотоотчёт — `PHOTO_REPORT_FEE_RUB` (150).
+  Все значения отдаются в `/api/config`, чтобы клиент и сервер считали одинаково.
 - `POST /api/calc` принимает флаги услуг и возвращает полную разбивку.
   `POST /api/orders` сохраняет снимок сумм и услуг в заказе.
 - Все деньги по-прежнему передаются строками; секретов в коде нет; новых зависимостей нет.
