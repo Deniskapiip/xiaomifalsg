@@ -13,10 +13,13 @@ router = APIRouter(tags=["Конфигурация и расчёт"])
 
 
 @router.get("/health")
-async def health(db: AsyncSession = Depends(session)):
+async def health(request: Request, db: AsyncSession = Depends(session)):
     from sqlalchemy import text
     await db.execute(text("SELECT 1"))
-    return {"ok": True, "service": "taoji-cargo"}
+    # Диагностика для хостинга: видно, как приложение получает запрос через прокси.
+    proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    return {"ok": True, "service": "taoji-cargo", "scheme": request.url.scheme,
+            "forwarded_proto": proto or None}
 
 
 @router.get("/config", response_model=ConfigOut, dependencies=[Depends(current_user)])

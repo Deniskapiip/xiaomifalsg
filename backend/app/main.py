@@ -21,6 +21,31 @@ from app.startup_errors import StartupError, bot_startup_error
 log = logging.getLogger("taoji")
 
 
+def is_secure_request(request: Request) -> bool:
+    """True when the request reached the app over HTTPS or through a trusted proxy.
+
+    Hosting platforms (Bothost, Caddy, Cloudflare) terminate TLS and forward plain
+    HTTP to the container: ``request.url.scheme`` stays "http", but the client
+    connection came from the private proxy network or carries X-Forwarded-Proto.
+    Such requests must not be rejected by the production HTTPS check. Direct
+    public access still has to use https.
+    """
+    if request.url.scheme == "https":
+        return True
+    proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    if proto == "https":
+        return True
+    if request.headers.get("x-forwarded-ssl", "").strip().lower() == "on":
+        return True
+    client = request.client.host if request.client else ""
+    try:
+        import ipaddress
+        address = ipaddress.ip_address(client)
+    except ValueError:
+        return False
+    return address.is_private or address.is_loopback
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     engine, sessions = create_database(settings.database_url)
@@ -92,7 +117,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             if request.headers.get("content-length", "0").isdigit() and int(request.headers.get("content-length", "0")) > 131072:
                 response = JSONResponse({"code": "BODY_TOO_LARGE", "message": "Запрос слишком большой"}, status_code=413)
-            elif settings.env == "production" and request.url.scheme != "https":
+            elif settings.env == "production" and not is_secure_request(request):
                 response = JSONResponse({"code": "HTTPS_REQUIRED", "message": "Требуется защищённое HTTPS-соединение"}, status_code=400)
             else:
                 response = await call_next(request)
