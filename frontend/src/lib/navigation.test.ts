@@ -54,4 +54,17 @@ describe('role-aware navigation and browser history', () => {
     if (screen.name !== 'admin') throw new Error('Expected administrator list');
     expect(screen.filters?.q?.length).toBe(2000); expect(screen.filters?.status?.length).toBe(64);
   });
+
+  it('round-trips the package tracking screen through ?tab=tracking for every role', () => {
+    const url = screenUrl({ name: 'tracking' }, href);
+    expect(url.searchParams.get('tab')).toBe('tracking');
+    for (const role of ['client', 'manager', 'owner'] as Role[]) expect(readScreen(role, url.href)).toEqual({ name: 'tracking' });
+    expect(url.hash).toBe(new URL(href).hash);
+  });
+
+  it('clears tracking and order parameters when going back home', () => {
+    const url = screenUrl({ name: 'home' }, 'https://cargo.example/?tab=tracking&open=order_77#launch');
+    expect(url.search).toBe(''); expect(url.searchParams.get('tab')).toBeNull();
+    expect(readScreen('client', url.href)).toEqual({ name: 'home' });
+  });
 });

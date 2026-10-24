@@ -1,4 +1,4 @@
-from decimal import Decimal
+﻿from decimal import Decimal
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, false, text
@@ -166,5 +166,24 @@ class NotificationJob(Base):
     state: Mapped[str] = mapped_column(String(24), default="pending")
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     next_attempt_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+
+
+class TrackingLink(Base):
+    """Внешний трек-номер (например, Добропост), который клиент отслеживает сам."""
+    __tablename__ = "tracking_links"
+    __table_args__ = (
+        UniqueConstraint("user_id", "provider", "track_number", name="unique_tracking_link"),
+        Index("ix_tracking_links_due", "next_check_at"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(20), default="dobropost", server_default=text("'dobropost'"))
+    track_number: Mapped[str] = mapped_column(String(64))
+    status_text: Mapped[str] = mapped_column(String(200), default="", server_default=text("''"))
+    ok: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    last_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    next_check_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, server_default=text("CURRENT_TIMESTAMP"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)

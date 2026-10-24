@@ -29,6 +29,9 @@ export function decimalValid(value: string, min: string, max: string, places: nu
 }
 export function boxesValid(value: string): boolean { return /^[1-9]\d?$/.test(value) && Number(value) <= 99; }
 export function quantityValid(value: string): boolean { return /^\d+$/.test(value) && new Exact(value || '0').gte(1) && new Exact(value || '0').lte(999); }
+/** Трек-номер: обрезаем края и схлопываем повторные пробелы перед проверкой и отправкой. */
+export function normalizeTracking(value: string): string { return value.trim().replace(/\s+/g, ' '); }
+export function trackingValid(value: string): boolean { return /^[A-Za-z0-9 _-]{3,64}$/.test(normalizeTracking(value)); }
 export function safeHttpUrl(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > 2000 || !/^https?:\/\/[^/\\]/i.test(trimmed) || /\\|\s|[\u0000-\u001f]/.test(trimmed)) return null;

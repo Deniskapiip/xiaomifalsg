@@ -156,6 +156,29 @@ class TrackSetIn(Input):
         return value
 
 
+class TrackingIn(Input):
+    track_number: str = Field(min_length=3, max_length=64)
+
+    @field_validator("track_number")
+    @classmethod
+    def normalize_track(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if not re.fullmatch(r"[A-Za-z0-9 _-]{3,64}", value):
+            raise ValueError("Трек-номер: 3–64 символа, латиница, цифры, пробел, «_» и «-»")
+        return value
+
+
+class TrackingOut(Output):
+    id: int
+    track_number: str
+    provider: str
+    status_text: str
+    ok: bool
+    last_checked_at: datetime | None
+    next_check_at: datetime
+    created_at: datetime
+
+
 class PriceOut(Output):
     goods_rub: int
     commission_rub: int

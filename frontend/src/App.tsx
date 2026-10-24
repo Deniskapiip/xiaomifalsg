@@ -16,6 +16,7 @@ import { Help } from './pages/Help';
 import { OrderWizard } from './pages/OrderWizard';
 import { Onboarding } from './pages/Onboarding';
 import { OrderSuccess } from './pages/OrderSuccess';
+import { Tracking } from './pages/Tracking';
 import { AdminPanel } from './components/AdminPanel';
 import { allowedScreen, readScreen, screenUrl } from './lib/navigation';
 
@@ -88,6 +89,7 @@ function ClientContent({ session }: { session: AuthResponse }) {
     case 'wizard': activeTab = 'wizard'; body = <OrderWizard config={data} user={session.user} role={session.role} onNavigate={navigate} />; break;
     case 'orders': activeTab = 'orders'; body = <Orders config={data} onNavigate={navigate} />; break;
     case 'order': activeTab = 'orders'; body = <DetailsBack onBack={() => navigate({ name: 'orders' })}><OrderDetails config={data} orderId={screen.id} onNavigate={navigate} /></DetailsBack>; break;
+    case 'tracking': activeTab = 'orders'; body = <DetailsBack onBack={() => navigate({ name: 'home' })}><Tracking config={data} onNavigate={navigate} /></DetailsBack>; break;
     case 'success': activeTab = 'orders'; body = <OrderSuccess config={data} user={session.user} order={screen.order} onNavigate={navigate} />; break;
     case 'help': activeTab = 'help'; body = <Help config={data} />; break;
     case 'admin': case 'admin-order': activeTab = 'admin'; body = <AdminPanel config={data} role={session.role} screen={screen} onNavigate={navigate} />; break;

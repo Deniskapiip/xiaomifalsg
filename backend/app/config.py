@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     channel_username: str = "taojicn"
     # Группа/канал отзывов: клиент открывает её кнопкой «Оставить отзыв» в Mini App.
     review_username: str = "taojiotziv"
+    # Автообновление внешних трек-номеров (Добропост): раз в N часов.
+    tracking_refresh_hours: int = Field(default=6, ge=1, le=72)
+    # Шаблон URL трекинга с {track}. Пусто — используются стандартные варианты
+    # tracking.dobropost.com. Значение задаётся, когда известен точный формат.
+    dobropost_tracking_url: str = ""
     insurance_percent: Decimal = Field(default=Decimal("10"), ge=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2)
     packing_fee_rub: int = Field(default=299, ge=0, le=1_000_000_000)
     photo_report_fee_rub: int = Field(default=150, ge=0, le=1_000_000_000)

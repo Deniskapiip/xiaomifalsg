@@ -1,12 +1,13 @@
 from aiogram import F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.bot import texts
-from app.models import User
+from app.models import TrackingLink, User
 from app.routers.auth import upsert_user
-from app.schemas import TelegramUser
+from app.schemas import TelegramUser, TrackingIn
 from app.services.orders import find_tracked_order
 
 
@@ -56,10 +57,37 @@ def create_router(settings, sessions, write_lock):
                 user = await db.scalar(select(User).where(User.tg_id == message.from_user.id))
                 if user is not None:
                     order = await find_tracked_order(db, number, user.id)
-        if order is None:
+        if order is not None:
+            await message.answer(texts.track_status(order), reply_markup=app_keyboard(settings, f"/?open=order_{order.id}"))
+            return
+        link = await track_link(message, number)
+        if link is None:
             await message.answer(texts.track_not_found(number))
             return
-        await message.answer(texts.track_status(order), reply_markup=app_keyboard(settings, f"/?open=order_{order.id}"))
+        await message.answer(texts.external_tracking_status(link, settings),
+                             reply_markup=app_keyboard(settings, "/?tab=tracking"))
+
+    async def track_link(message: Message, number: str):
+        """Save an external carrier track (DobroPost) and return it; None when invalid."""
+        if message.from_user is None or number.upper().startswith("TC-"):
+            return None
+        try:
+            data = TrackingIn(track_number=number)
+        except ValidationError:
+            return None
+        async with write_lock:
+            async with sessions() as db:
+                user = await db.scalar(select(User).where(User.tg_id == message.from_user.id))
+                if user is None:
+                    return None
+                link = await db.scalar(select(TrackingLink).where(
+                    TrackingLink.user_id == user.id, TrackingLink.track_number == data.track_number))
+                if link is None:
+                    link = TrackingLink(user_id=user.id, track_number=data.track_number)
+                    db.add(link)
+                    await db.commit()
+                await db.refresh(link)
+                return link
 
     @router.message(Command("help"), F.chat.type == "private")
     async def help_command(message: Message):

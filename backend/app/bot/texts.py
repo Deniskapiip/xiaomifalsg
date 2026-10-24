@@ -125,6 +125,27 @@ def track_not_found(number: str) -> str:
     return f"Заказ «{escape(number)}» не найден. Проверьте номер или откройте /orders."
 
 
+def _track_datetime(value) -> str:
+    return value.astimezone(ZoneInfo("Europe/Moscow")).strftime("%d.%m.%Y %H:%M МСК") if value else "—"
+
+
+def external_tracking_status(link, settings) -> str:
+    status = link.status_text or "ожидает первого обновления"
+    checked = _track_datetime(link.last_checked_at) if link.last_checked_at else "ещё не проверяли"
+    next_at = _track_datetime(link.next_check_at)
+    return (
+        f"📦 <b>Трек {escape(link.track_number)}</b>\n"
+        f"Статус: {escape(status)}\n"
+        f"Обновлено: {escape(checked)}\n"
+        f"Следующее обновление: {escape(next_at)} (каждые {settings.tracking_refresh_hours} ч)\n"
+        "Трек сохранён: статус обновляется автоматически, смотреть можно в приложении."
+    )
+
+
+def external_tracking_update(link) -> str:
+    return f"🔄 <b>Трек {escape(link.track_number)}</b>\nНовый статус: {escape(link.status_text)}"
+
+
 def welcome(settings):
     return "Добро пожаловать в <b>Taoji Cargo</b>!\nЗдесь можно рассчитать стоимость выкупа, оформить заказ и посмотреть его статус.\n" + f"По вопросам оплаты и доставки — @{escape(settings.manager_username)}."
 
@@ -135,7 +156,8 @@ def help_text(settings):
 
 APP_TEXT = "Откройте приложение, чтобы рассчитать стоимость и оформить заказ."
 ORDERS_TEXT = "Ваши заказы и история статусов — в приложении."
-TRACK_USAGE = "Отправьте трек-номер или номер заказа: /track TC-000001"
+TRACK_USAGE = ("Отправьте трек-номер или номер заказа: /track TC-000001.\n"
+               "Трек-номер Добропоста сохранится в приложении и будет обновляться каждые 6 часов.")
 BUTTON_OPEN = "Открыть приложение"
 BUTTON_ORDERS = "Мои заказы"
 BUTTON_ORDER = "Открыть заказ"

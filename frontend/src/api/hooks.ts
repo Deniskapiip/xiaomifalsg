@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ApiError, request } from './client';
-import type { AppConfig, Order, OrderPage } from './types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError, post, request } from './client';
+import type { AppConfig, Order, OrderPage, TrackingLink } from './types';
 
 export function retryQuery(attempt: number, error: Error): boolean { return attempt < 2 && !(error instanceof ApiError && [401, 403, 404, 422, 429].includes(error.status)); }
 export function useConfig() { return useQuery({ queryKey: ['config'], queryFn: ({ signal }) => request<AppConfig>('/config', { signal }), staleTime: 60000, retry: retryQuery }); }
@@ -29,4 +29,26 @@ export function useTrackOrder(number: string | null) {
   const normalized = (number ?? '').trim();
   return useQuery({ queryKey: ['track', normalized], queryFn: ({ signal }) => request<Order>('/track?number=' + encodeURIComponent(normalized), { signal }),
     enabled: normalized.length > 0, staleTime: 0, retry: false });
+}
+/** Saved Dobropost tracking numbers; the backend refreshes them every TRACKING_REFRESH_HOURS. */
+export function useTrackingLinks({ poll = false }: { poll?: boolean } = {}) {
+  const query = useQuery({ queryKey: ['tracking'], queryFn: ({ signal }) => request<TrackingLink[]>('/tracking', { signal }),
+    staleTime: 60000, refetchInterval: poll ? 30 * 60000 : false, refetchIntervalInBackground: false, retry: retryQuery });
+  useVisibleRefresh(query.refetch, true); return query;
+}
+function useInvalidateTracking() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: ['tracking'] });
+}
+export function useAddTracking() {
+  const invalidate = useInvalidateTracking();
+  return useMutation({ mutationFn: (trackNumber: string) => post<TrackingLink>('/tracking', { track_number: trackNumber }), onSuccess: () => invalidate() });
+}
+export function useDeleteTracking() {
+  const invalidate = useInvalidateTracking();
+  return useMutation({ mutationFn: (id: number) => request<{ ok: boolean }>(`/tracking/${id}`, { method: 'DELETE' }), onSuccess: () => invalidate() });
+}
+export function useRefreshTracking() {
+  const invalidate = useInvalidateTracking();
+  return useMutation({ mutationFn: (id: number) => request<TrackingLink>(`/tracking/${id}/refresh`, { method: 'POST' }), onSuccess: () => invalidate() });
 }

@@ -15,7 +15,8 @@ from app.api import products
 from app.db import create_database
 from app.errors import AppError, install_error_handlers
 from app.limiter import create_limiter, limit_error
-from app.routers import admin, auth, orders, public
+from app.routers import admin, auth, orders, public, tracking
+from app.services.tracking import TrackingWorker
 from app.startup_errors import StartupError, bot_startup_error
 
 log = logging.getLogger("taoji")
@@ -95,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 tasks.append(asyncio.create_task(NotificationWorker(bot, sessions, settings, write_lock).run()))
                 if settings.bot_mode == "polling":
                     tasks.append(asyncio.create_task(dispatcher.start_polling(bot, handle_signals=False, close_bot_session=False, allowed_updates=["message"])))
+            tasks.append(asyncio.create_task(TrackingWorker(sessions, settings, write_lock, bot).run()))
             app.state.background_tasks = tasks
             yield
         finally:
@@ -140,7 +142,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
-    for router in (auth.make_router(limiter), public.router, orders.router, admin.router, products.make_router(limiter)):
+    for router in (auth.make_router(limiter), public.router, orders.router, admin.router, tracking.router, products.make_router(limiter)):
         app.include_router(router, prefix="/api")
 
     if settings.bot_enabled and settings.bot_mode == "webhook":

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   boxesValid, createDraftItem, decimalValid, firstStepErrors, itemErrors, itemsErrors,
-  normalizeDecimal, platformLabel, quantityValid, safeHttpUrl, type DraftFields, type DraftItem,
+  normalizeDecimal, normalizeTracking, platformLabel, quantityValid, safeHttpUrl, trackingValid,
+  type DraftFields, type DraftItem,
 } from './validation';
 
 const item: DraftItem = createDraftItem({ link: 'https://shop.example/item/42', price_cny: '300', quantity: '1' });
@@ -88,5 +89,26 @@ describe('order input validation', () => {
     expect(boxesValid('99')).toBe(true);
     for (const boxes of ['0', '100', '01', '1.5', '', 'abc']) expect(boxesValid(boxes)).toBe(false);
     expect(firstStepErrors({ ...validDraft, boxes: '0' })).toEqual({});
+  });
+});
+
+describe('tracking number validation', () => {
+  it('normalizes outer and repeated spaces', () => {
+    expect(normalizeTracking('  CN  123  ')).toBe('CN 123');
+    expect(normalizeTracking('AB123456789CN')).toBe('AB123456789CN');
+  });
+
+  it('accepts 3..64 Latin letters, digits, spaces, dashes and underscores', () => {
+    for (const value of ['AB123456789CN', 'CN 123 456', 'track_1-2', '  AB123  ', 'A1-', '1_2']) expect(trackingValid(value)).toBe(true);
+  });
+
+  it('rejects empty, too short, too long and foreign characters', () => {
+    for (const value of ['', '  ', 'AB', 'A'.repeat(65), 'АБВ123', 'трек-номер', 'track#1', 'AB/123', '123\u0000']) expect(trackingValid(value)).toBe(false);
+  });
+
+  it('counts the normalized value against the length limit', () => {
+    expect(trackingValid('A'.repeat(64))).toBe(true);
+    expect(trackingValid('A'.repeat(62) + '  ')).toBe(true);
+    expect(trackingValid('A'.repeat(65) + '  ')).toBe(false);
   });
 });
