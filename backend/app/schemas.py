@@ -207,6 +207,7 @@ class CalcOut(PriceOut):
 class TariffIn(Input):
     name: str = Field(min_length=1, max_length=100)
     price_per_kg: Decimal = Field(ge=Decimal("0"), lt=Decimal("10000000000"), max_digits=12, decimal_places=2)
+    price_on_request: bool = False
     price_currency: Literal["rub", "cny"] = "rub"
     insurance_available: bool = False
     eta_text: str = Field(default="", max_length=200)
@@ -224,8 +225,11 @@ class TariffIn(Input):
 
     @model_validator(mode="after")
     def active_price(self):
+        if self.price_on_request:
+            self.price_per_kg = Decimal("0")
+            return self
         if self.is_active and self.price_per_kg <= 0:
-            raise ValueError("У активного тарифа цена должна быть больше нуля")
+            raise ValueError("У активного тарифа цена должна быть больше нуля или включена «цена по запросу»")
         return self
 
 
@@ -233,6 +237,7 @@ class TariffOut(Output):
     id: int
     name: str
     price_per_kg: Decimal
+    price_on_request: bool = False
     price_currency: str
     insurance_available: bool
     eta_text: str

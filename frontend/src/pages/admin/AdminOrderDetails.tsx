@@ -360,11 +360,11 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
         <div className="section-heading"><h3>Доставка</h3><Icon name="truck" size={22} /></div>
         <div className="breakdown">
           <div className="breakdown-row"><span>Тариф при оформлении</span><strong>{order.tariff_name}</strong></div>
-          {order.tariff_price_currency === 'cny' && <div className="breakdown-row"><span>Цена тарифа</span><strong>{decimalNumber(order.tariff_price_value, 2)} ¥ / кг</strong></div>}
-          <div className="breakdown-row"><span>Ставка за кг</span><strong>{decimalNumber(order.tariff_price_per_kg, 2)} ₽ / кг</strong></div>
+          {order.tariff_price_currency === 'cny' && Number(order.tariff_price_value) > 0 && <div className="breakdown-row"><span>Цена тарифа</span><strong>{decimalNumber(order.tariff_price_value, 2)} ¥ / кг</strong></div>}
+          <div className="breakdown-row"><span>Ставка за кг</span><strong>{Number(order.tariff_price_per_kg) === 0 ? 'Цена по запросу' : `${decimalNumber(order.tariff_price_per_kg, 2)} ₽ / кг`}</strong></div>
           {order.boxes > 1 && <div className="breakdown-row"><span>Обрешётка</span><strong>{boxesLabel(order.boxes)}</strong></div>}
           <div className="breakdown-row"><span>Примерный вес</span><strong>{decimalNumber(order.weight_kg, 3)} кг</strong></div>
-          <div className="breakdown-row"><span>Ориентировочно</span><strong>{money(order.delivery_estimate_rub)}</strong></div>
+          <div className="breakdown-row"><span>Ориентировочно</span><strong>{Number(order.tariff_price_per_kg) === 0 ? 'Уточнит менеджер' : money(order.delivery_estimate_rub)}</strong></div>
           {order.delivery_final_rub !== null && <div className="breakdown-row breakdown-row--total"><span>Итоговая доставка</span><strong className="money">{money(order.delivery_final_rub)}</strong></div>}
         </div>
       </section>

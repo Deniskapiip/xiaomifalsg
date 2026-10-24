@@ -21,7 +21,7 @@ async def seed_database(sessions, demo: bool = False):
             tariffs = (await db.scalars(select(Tariff).order_by(Tariff.id).limit(4))).all()
             for index, tariff in enumerate(tariffs, start=1):
                 # Never overwrite an owner's configured tariff.
-                if tariff.price_per_kg == 0 and not tariff.is_active and tariff.name == f"Тариф {index}" and not tariff.description and not tariff.eta_text:
+                if tariff.price_per_kg == 0 and not tariff.is_active and not tariff.price_on_request and tariff.name == f"Тариф {index}" and not tariff.description and not tariff.eta_text:
                     tariff.name = f"Тариф {index} (демо)"
                     tariff.price_per_kg = Decimal(1800 + (index - 1) * 200)
                     tariff.description = "Демонстрационный тариф для проверки. Не является предложением доставки."

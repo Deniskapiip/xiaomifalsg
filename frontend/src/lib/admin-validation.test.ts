@@ -4,7 +4,7 @@ import type { StatusDefinition } from '../api/types';
 import { deliveryAmountValid, statusRequiresConfirmation, validateSettings, validateTariff, type TariffFields } from './admin-validation';
 
 const settings: SettingsInput = { rate_cny_rub: '13.5', commission_percent: '6.5', commission_min_rub: '650' };
-const tariff: TariffFields = { name: 'Тариф', price_per_kg: '1800', price_currency: 'rub', insurance_available: false, eta_text: '', description: '', is_active: true, sort_order: '0' };
+const tariff: TariffFields = { name: 'Тариф', price_per_kg: '1800', price_on_request: false, price_currency: 'rub', insurance_available: false, eta_text: '', description: '', is_active: true, sort_order: '0' };
 const keys = ['processing', 'purchased', 'to_cn_warehouse', 'at_cn_warehouse', 'awaiting_delivery_payment', 'to_cn_customs', 'cn_customs', 'to_ru_customs', 'ru_customs', 'to_recipient', 'delivered', 'cancelled'];
 const statuses: StatusDefinition[] = keys.map((key, order) => ({ key, order, name: key, icon: '', stage: key === 'cancelled' ? null : order === 0 ? 1 : order === 1 ? 2 : order <= 4 ? 3 : 4, terminal: ['delivered', 'cancelled'].includes(key) }));
 
@@ -37,7 +37,7 @@ describe('tariff validation', () => {
   });
 
   it('normalizes decimal input and accepts the maximum price and sort order', () => {
-    expect(validateTariff({ ...tariff, name: ' Тариф ', price_per_kg: '9999999999,99', sort_order: ' 10000 ', eta_text: ' Уточняйте ', description: ' Описание ' })).toEqual({ errors: {}, input: { name: 'Тариф', price_per_kg: '9999999999.99', price_currency: 'rub', insurance_available: false, sort_order: 10000, eta_text: 'Уточняйте', description: 'Описание', is_active: true } });
+    expect(validateTariff({ ...tariff, name: ' Тариф ', price_per_kg: '9999999999,99', sort_order: ' 10000 ', eta_text: ' Уточняйте ', description: ' Описание ' })).toEqual({ errors: {}, input: { name: 'Тариф', price_per_kg: '9999999999.99', price_on_request: false, price_currency: 'rub', insurance_available: false, sort_order: 10000, eta_text: 'Уточняйте', description: 'Описание', is_active: true } });
   });
 
   it('accepts a yuan tariff and carries the insurance flag', () => {
@@ -51,6 +51,13 @@ describe('tariff validation', () => {
     expect(invalid.input).toBeNull();
     expect(invalid.errors).toHaveProperty('price_currency');
     expect(validateTariff({ ...tariff, price_currency: 'cny' }).errors).toEqual({});
+  });
+
+  it('allows an active tariff with the price on request flag', () => {
+    const result = validateTariff({ ...tariff, price_per_kg: '', price_on_request: true });
+    expect(result.errors).toEqual({});
+    expect(result.input?.price_on_request).toBe(true);
+    expect(result.input?.price_per_kg).toBe('0');
   });
 
   it.each(['10000000000', '1.001', '-1', '1e3'])('rejects an invalid tariff price: %s', (price_per_kg) => {

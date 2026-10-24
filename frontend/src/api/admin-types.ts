@@ -19,6 +19,6 @@ export interface RateHistory { id: number; old_rate: string; new_rate: string; c
 export interface SettingsInput { rate_cny_rub: string; commission_percent: string; commission_min_rub: string }
 export interface AdminSettingsData extends SettingsInput { rate_updated_at: string; rate_updated_by: number | null; rate_history: RateHistory[] }
 export interface TariffInput {
-  name: string; price_per_kg: string; price_currency: TariffCurrency; insurance_available: boolean;
+  name: string; price_per_kg: string; price_on_request: boolean; price_currency: TariffCurrency; insurance_available: boolean;
   eta_text: string; description: string; is_active: boolean; sort_order: number;
 }

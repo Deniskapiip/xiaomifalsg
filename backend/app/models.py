@@ -50,6 +50,7 @@ class Tariff(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     price_per_kg: Mapped[Decimal] = mapped_column(ExactDecimal(12, 2))
+    price_on_request: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     price_currency: Mapped[str] = mapped_column(String(3), default="rub", server_default=text("'rub'"))
     insurance_available: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     eta_text: Mapped[str] = mapped_column(String(200), default="")

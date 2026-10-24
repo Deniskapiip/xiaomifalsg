@@ -15,7 +15,7 @@ async def get_app_settings(db) -> AppSettings:
 
 async def active_tariff(db, tariff_id: int) -> Tariff:
     tariff = await db.get(Tariff, tariff_id)
-    if tariff is None or not tariff.is_active or tariff.price_per_kg <= 0:
+    if tariff is None or not tariff.is_active or (tariff.price_per_kg <= 0 and not tariff.price_on_request):
         raise AppError("TARIFF_INACTIVE", "Этот тариф сейчас недоступен. Выберите другой.", 422)
     return tariff
 

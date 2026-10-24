@@ -3,7 +3,7 @@ export interface User { id: number; tg_id: number; username: string | null; firs
 export interface AuthResponse { access_token: string; token_type: string; expires_in: number; user: User; role: Role }
 export type TariffCurrency = 'rub' | 'cny';
 export interface Tariff {
-  id: number; name: string; price_per_kg: string; price_currency: TariffCurrency; insurance_available: boolean;
+  id: number; name: string; price_per_kg: string; price_on_request: boolean; price_currency: TariffCurrency; insurance_available: boolean;
   eta_text: string; description: string; is_active: boolean; sort_order: number; created_at: string; updated_at: string;
 }
 export interface StatusDefinition { key: string; name: string; icon: string; stage: number | null; order: number; terminal: boolean }

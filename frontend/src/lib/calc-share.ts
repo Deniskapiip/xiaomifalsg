@@ -41,7 +41,9 @@ export function quoteSummaryText({ quote, draft, config }: QuoteSummaryInput): s
   lines.push(`Доп. услуги: ${services.length ? services.join(', ') : 'нет'}`);
   if (services.length) lines.push(`Сумма доп. услуг: ${money(quote.extras_total_rub)}`);
   lines.push(`К оплате за выкуп: ${money(quote.total_with_extras_rub)}`);
-  lines.push(`Доставка: ${quote.tariff_name} · ~${decimalNumber(draft.weight_kg, 3)} кг ≈ ${money(quote.delivery_estimate_rub)}`);
+  lines.push(Number(quote.tariff_price_per_kg) === 0
+    ? `Доставка: ${quote.tariff_name} · ~${decimalNumber(draft.weight_kg, 3)} кг · цена по запросу`
+    : `Доставка: ${quote.tariff_name} · ~${decimalNumber(draft.weight_kg, 3)} кг ≈ ${money(quote.delivery_estimate_rub)}`);
   lines.push(`Курс: ${decimalNumber(quote.rate, 4)} ₽ за 1 ¥`);
   lines.push(`Вопросы по заказу: @${config.contacts.manager}`);
   return lines.join('\n');
