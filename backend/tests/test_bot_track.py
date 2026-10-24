@@ -50,7 +50,7 @@ async def test_bot_track_hints_for_missing_or_unknown_number(app, settings, monk
     usage = await send_track_command(app, settings, monkeypatch, "/track")
     assert usage == texts.TRACK_USAGE
     missing = await send_track_command(app, settings, monkeypatch, "/track NOPE-1")
-    # Неизвестный номер не теряется: он сохраняется как внешний трек и обновляется каждые 6 часов.
+    # Неизвестный номер не теряется: он сохраняется как внешний трек и обновляется каждый час.
     assert "NOPE-1" in missing
     assert "ожидает первого обновления" in missing
-    assert "каждые 6 ч" in missing
+    assert f"каждые {settings.tracking_refresh_hours} ч" in missing

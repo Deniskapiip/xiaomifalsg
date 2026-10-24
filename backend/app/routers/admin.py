@@ -106,6 +106,27 @@ async def tracking_refresh(request: Request, order_id: int,
     return await order_output(db, order, admin=True)
 
 
+@router.post("/tracking/refresh-all")
+async def tracking_refresh_all(request: Request,
+                               principal: Principal = Depends(administrator), db: AsyncSession = Depends(session)):
+    """Проверить все активные заказы с трек-номерами (до 20 за вызов)."""
+    from app.services.order_tracking import refresh_order
+    orders = (await db.scalars(
+        select(Order).where(Order.track_number.is_not(None), Order.track_number != "",
+                            Order.status.not_in([Status.delivered.value, Status.cancelled.value]))
+        .order_by(Order.tracking_next_check_at, Order.id).limit(20)
+    )).all()
+    changed = checked = 0
+    for order in orders:
+        try:
+            if await refresh_order(db, order, request.app.state.settings):
+                changed += 1
+            checked += 1
+        except Exception:  # noqa: BLE001 - один заказ не должен ломать остальные
+            continue
+    return {"checked": checked, "changed": changed, "total": len(orders)}
+
+
 @router.get("/settings", response_model=SettingsOut)
 async def get_settings(_principal: Principal = Depends(owner), db: AsyncSession = Depends(session)):
     return await settings_output(db)

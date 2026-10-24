@@ -71,6 +71,8 @@ def client_notification(kind, order, event, settings):
         reason = event.payload.get("cancel_reason")
         if isinstance(reason, str) and reason:
             text += f"\nПричина: {escape(reason)}"
+    if kind == "delivered":
+        text += f"\nПоделитесь впечатлением: @{escape(settings.review_username)}"
     return text
 
 
@@ -163,5 +165,6 @@ BUTTON_ORDERS = "Мои заказы"
 BUTTON_ORDER = "Открыть заказ"
 BUTTON_ADMIN = "Открыть в админке"
 BUTTON_CLIENT = "Написать клиенту"
+BUTTON_REVIEW = "Оставить отзыв"
 COMMANDS = [("start", "Начать работу"), ("app", "Открыть приложение"), ("orders", "Мои заказы"),
             ("track", "Статус по трек-номеру"), ("help", "Помощь и контакты")]

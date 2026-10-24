@@ -65,8 +65,11 @@ class Settings(BaseSettings):
     channel_username: str = "taojicn"
     # Группа/канал отзывов: клиент открывает её кнопкой «Оставить отзыв» в Mini App.
     review_username: str = "taojiotziv"
-    # Автообновление внешних трек-номеров (Добропост): раз в N часов.
-    tracking_refresh_hours: int = Field(default=6, ge=1, le=72)
+    # Автообновление трек-номеров Добропоста: раз в N часов (по умолчанию каждый час).
+    tracking_refresh_hours: int = Field(default=1, ge=1, le=72)
+    # Ежедневный бэкап SQLite в data/backups (бесплатно, без внешних сервисов).
+    backup_enabled: bool = True
+    backup_keep: int = Field(default=7, ge=1, le=30)
     # Автосмена статусов заказа по трек-номеру Добропоста (после «Ожидает оплаты доставки»).
     order_tracking_enabled: bool = True
     # Публичный ключ из трекинг-страницы Добропоста; секрета не содержит, но меняется вместе с сайтом.

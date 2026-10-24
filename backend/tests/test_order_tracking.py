@@ -141,6 +141,28 @@ async def test_manual_provider_refresh_endpoint(client, app, settings, auth_head
                               headers=manager)).status_code == 409
 
 
+async def test_refresh_all_checks_active_tracked_orders(client, app, settings, auth_headers, order_payload, monkeypatch):
+    customer = await auth_headers(571)
+    first = (await client.post("/api/orders", json={**order_payload, "idempotency_key": str(uuid4())},
+                               headers=customer)).json()
+    second = (await client.post("/api/orders", json={**order_payload, "idempotency_key": str(uuid4())},
+                                headers=customer)).json()
+    manager = await auth_headers(222)
+    for order, number in ((first, "DBRPST60001"), (second, "DBRPST60002")):
+        await advance_to_awaiting(client, manager, order["id"])
+        await client.post(f"/api/admin/orders/{order['id']}/tracking", headers=manager,
+                          json={"number": number, "notify": False})
+
+    provider(monkeypatch, "Посылка доставлена получателю", True)
+    result = await client.post("/api/admin/tracking/refresh-all", headers=manager)
+    assert result.status_code == 200, result.text
+    body = result.json()
+    assert body["checked"] >= 2 and body["changed"] >= 2
+    for order in (first, second):
+        saved = (await client.get(f"/api/orders/{order['id']}", headers=customer)).json()
+        assert saved["status"] == "delivered"
+
+
 def test_status_mapping_and_advance_rules():
     assert map_provider_status("Доставлен") == Status.delivered
     assert map_provider_status("Передан курьеру") == Status.to_recipient

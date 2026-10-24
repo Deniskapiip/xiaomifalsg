@@ -77,7 +77,7 @@ async def test_manual_refresh_cooldown(client, app, auth_headers, monkeypatch):
     assert blocked.json()["code"] == "TRACKING_COOLDOWN"
 
 
-async def test_worker_refreshes_due_links_every_six_hours(client, app, settings, auth_headers, monkeypatch):
+async def test_worker_refreshes_due_links_every_hour(client, app, settings, auth_headers, monkeypatch):
     fast_provider(monkeypatch)
     await auth_headers(560)
     async with app.state.sessions() as db:
@@ -97,8 +97,9 @@ async def test_worker_refreshes_due_links_every_six_hours(client, app, settings,
         row = await db.get(TrackingLink, link["id"])
         assert row.status_text == "Прибыл в пункт выдачи"
         assert row.ok is True
-        assert row.next_check_at - utcnow() > timedelta(hours=5)
-        assert row.next_check_at - utcnow() <= timedelta(hours=6, minutes=1)
+        expected = timedelta(hours=settings.tracking_refresh_hours)
+        assert row.next_check_at - utcnow() > expected - timedelta(minutes=5)
+        assert row.next_check_at - utcnow() <= expected + timedelta(minutes=1)
 
 
 def test_extract_status_from_html_and_json():
@@ -155,6 +156,6 @@ async def test_external_tracking_texts(app, settings, client, auth_headers, monk
         update_text = texts.external_tracking_update(row)
     assert "DPTEXT1" in status_text
     assert "В пути" in status_text
-    assert "каждые 6 ч" in status_text
+    assert f"каждые {settings.tracking_refresh_hours} ч" in status_text
     assert "МСК" in status_text
     assert "Новый статус: В пути" in update_text

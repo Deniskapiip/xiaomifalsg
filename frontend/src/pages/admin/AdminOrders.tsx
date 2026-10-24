@@ -2,15 +2,19 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { AppConfig, Navigate } from '../../api/types';
 import type { AdminOrderFilters } from '../../api/admin-types';
 import { isAccessDenied, useAdminOrders } from '../../api/admin';
+import { request } from '../../api/client';
 import { OrderCard } from '../../components/OrderCard';
 import { EmptyState, ErrorState, LoadingState } from '../../components/UiStates';
 import { Icon } from '../../components/Icon';
+import { haptic } from '../../lib/telegram';
 
 const pageSize = 20;
 
 export function AdminOrders({ config, filters, onNavigate }: { config: AppConfig; filters: AdminOrderFilters; onNavigate: Navigate }) {
   const offset = filters.offset ?? 0;
   const [search, setSearch] = useState(filters.q ?? '');
+  const [trackingBusy, setTrackingBusy] = useState(false);
+  const [trackingResult, setTrackingResult] = useState<string | null>(null);
   const orders = useAdminOrders({ ...filters, limit: pageSize, offset });
   useEffect(() => { setSearch(filters.q ?? ''); }, [filters.q]);
 
@@ -21,6 +25,20 @@ export function AdminOrders({ config, filters, onNavigate }: { config: AppConfig
   function submitSearch(event: FormEvent) {
     event.preventDefault();
     changeFilters({ q: search.trim(), offset: 0 });
+  }
+
+  async function refreshTracks() {
+    if (trackingBusy) return;
+    setTrackingBusy(true); setTrackingResult(null);
+    try {
+      const result = await request<{ checked: number; changed: number; total: number }>('/admin/tracking/refresh-all', { method: 'POST' });
+      setTrackingResult(`Добропост: проверено ${result.checked} из ${result.total}, статус обновился у ${result.changed}.`);
+      haptic('success');
+      void orders.refetch();
+    } catch (error) {
+      setTrackingResult(error instanceof Error ? error.message : 'Не удалось проверить треки.');
+      haptic('error');
+    } finally { setTrackingBusy(false); }
   }
 
   if (isAccessDenied(orders.error)) return <ErrorState message="Доступ к заказам закрыт. Ваша роль могла измениться." onRetry={() => void orders.refetch()} />;
@@ -57,8 +75,12 @@ export function AdminOrders({ config, filters, onNavigate }: { config: AppConfig
     {orders.isError && orders.data && <p className="notice notice--warning">Список не удалось обновить. Показаны последние загруженные данные.</p>}
     {orders.data && <div className="inline-row space-between">
       <p className="muted text-small" role="status">Найдено: {orders.data.total}</p>
-      <button className="button button--ghost" type="button" disabled={orders.isFetching} onClick={() => void orders.refetch()}><Icon name="refresh" size={16} />{orders.isFetching ? 'Обновляем…' : 'Обновить'}</button>
+      <div className="inline-row">
+        <button className="button button--ghost" type="button" disabled={trackingBusy} onClick={() => void refreshTracks()}><Icon name="truck" size={16} />{trackingBusy ? 'Проверяем…' : 'Проверить все треки'}</button>
+        <button className="button button--ghost" type="button" disabled={orders.isFetching} onClick={() => void orders.refetch()}><Icon name="refresh" size={16} />{orders.isFetching ? 'Обновляем…' : 'Обновить'}</button>
+      </div>
     </div>}
+    {trackingResult && <p className="notice notice--info" role="status">{trackingResult}</p>}
 
     {orders.isPending ? <LoadingState label="Загружаем заказы клиентов" />
       : !orders.data ? <ErrorState message={orders.error?.message || 'Не удалось получить список заказов'} onRetry={() => void orders.refetch()} />
