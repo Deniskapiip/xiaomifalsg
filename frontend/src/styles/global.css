@@ -420,3 +420,13 @@ dl.breakdown { margin: 8px 0 0; }
 .platform-mark--unknown { background: var(--color-surface-raised); color: var(--color-muted); box-shadow: inset 0 0 0 1px var(--color-border); }
 .platform-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .platform-line > .input { flex: 1; min-width: 0; }
+
+/* Logo mode: official platform icon inside a neutral chip with a thin brand ring. */
+.platform-mark img { width: 68%; height: 68%; object-fit: contain; }
+.platform-mark--logo { background: var(--color-surface-raised); box-shadow: inset 0 0 0 1.5px var(--platform-unknown); }
+.platform-mark--goofish.platform-mark--logo { box-shadow: inset 0 0 0 1.5px var(--platform-goofish); }
+.platform-mark--poizon.platform-mark--logo { box-shadow: inset 0 0 0 1.5px var(--platform-poizon); }
+.platform-mark--taobao.platform-mark--logo { box-shadow: inset 0 0 0 1.5px var(--platform-taobao); }
+.platform-mark--tmall.platform-mark--logo { box-shadow: inset 0 0 0 1.5px var(--platform-tmall); }
+.platform-mark--ali1688.platform-mark--logo { box-shadow: inset 0 0 0 1.5px var(--platform-1688); }
+.platform-mark--pinduoduo.platform-mark--logo { box-shadow: inset 0 0 0 1.5px var(--platform-pinduoduo); }
