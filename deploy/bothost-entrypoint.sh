@@ -8,12 +8,16 @@ DATA_DIR="${DATA_DIR:-/app/data}"
 mkdir -p "$DATA_DIR"
 export DATA_DIR
 
-# 1. Хостинг-контейнер обязан слушать 0.0.0.0 на порту платформы.
-# Принудительно перекрываем значения из локального .env (HOST=127.0.0.1, PORT=8000),
-# иначе Bothost получает 502: приложение слушает только внутри контейнера.
-export HOST=0.0.0.0
-: "${PORT:=8000}"
+# 1. Порт. Bothost проксирует домен на «внутренний порт» из панели, но не всегда
+# передаёт PORT приложению. Берём PORT, иначе типовые переменные платформы, иначе
+# документированный Bothost порт 3000. Остальные распространённые порты
+# (8000/8080/5000) открывает app.port_alias, поэтому неверный порт не даёт 502.
+if [ -z "${PORT:-}" ] && [ -n "${APP_PORT:-}" ]; then export PORT="$APP_PORT"; fi
+if [ -z "${PORT:-}" ] && [ -n "${INTERNAL_PORT:-}" ]; then export PORT="$INTERNAL_PORT"; fi
+if [ -z "${PORT:-}" ] && [ -n "${BOTHOST_PORT:-}" ]; then export PORT="$BOTHOST_PORT"; fi
+: "${PORT:=3000}"
 export PORT
+export HOST=0.0.0.0
 
 # 2. На Bothost всегда есть HTTPS-домен в DOMAIN. Он — единственный правильный адрес
 # Mini App. Старый ngrok/cloudflare-адрес из локального .env игнорируем, иначе
@@ -97,10 +101,14 @@ rm -f "$SECRETS_ENV"
 
 # Диагностика без секретов: помогает сверить порт с настройкой «внутренний порт» в панели.
 echo "[bothost] HOST=${HOST} PORT=${PORT} WEBAPP_URL=${WEBAPP_URL:-unset} BOT_MODE=${BOT_MODE} ENV=${ENV} DATABASE_URL=${DATABASE_URL} secrets=${SECRETS_FILE}"
+echo "[bothost] env names: $(env | cut -d= -f1 | sort | tr '\n' ' ')"
 
 cd /srv/taoji-cargo/backend
 
 python -m alembic upgrade head
 python -m app.seed
+
+# Платформа может проксировать любой из типовых портов: держим остальные открытыми.
+python -m app.port_alias &
 
 exec python -m app.main
