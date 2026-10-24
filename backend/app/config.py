@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     # Напоминание об отзыве: одно сообщение клиенту через N часов после «Доставлен».
     review_reminder_enabled: bool = True
     review_reminder_hours: int = Field(default=48, ge=1, le=720)
+    # Ежедневная сводка владельцу/менеджеру в бота (МСК, час 0..23).
+    digest_enabled: bool = True
+    digest_hour: int = Field(default=10, ge=0, le=23)
+    # Заказ считается «зависшим», если статус не менялся N дней.
+    stale_order_days: int = Field(default=3, ge=1, le=60)
     # Автосмена статусов заказа по трек-номеру Добропоста.
     order_tracking_enabled: bool = True
     # При сохранении трека сразу проверяем Добропост (синхронно, коротким таймаутом).

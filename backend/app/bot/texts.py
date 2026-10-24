@@ -150,6 +150,24 @@ def external_tracking_update(link) -> str:
     return f"🔄 <b>Трек {escape(link.track_number)}</b>\nНовый статус: {escape(link.status_text)}"
 
 
+def daily_digest(new_today: int, delivered_today: int, stale_orders, stale_days: int) -> str:
+    lines = [
+        "📊 <b>Сводка Taoji Cargo</b>",
+        f"Новых заказов сегодня: <b>{new_today}</b>",
+        f"Доставлено сегодня: <b>{delivered_today}</b>",
+    ]
+    if stale_orders:
+        lines.append(f"\n⚠️ Зависли без изменений > {stale_days} дн.: <b>{len(stale_orders)}</b>")
+        for row in stale_orders[:6]:
+            public_no = getattr(row, "public_no", row.get("public_no") if isinstance(row, dict) else "")
+            status_name = getattr(row, "status_name", row.get("status_name") if isinstance(row, dict) else "")
+            days = getattr(row, "days", row.get("days") if isinstance(row, dict) else "")
+            lines.append(f"• {escape(str(public_no))} — {escape(str(status_name))}, {days} дн.")
+    else:
+        lines.append("\n✅ Зависших заказов нет")
+    return "\n".join(lines)
+
+
 def welcome(settings):
     return "Добро пожаловать в <b>Taoji Cargo</b>!\nЗдесь можно рассчитать стоимость выкупа, оформить заказ и посмотреть его статус.\n" + f"По вопросам оплаты и доставки — @{escape(settings.manager_username)}."
 

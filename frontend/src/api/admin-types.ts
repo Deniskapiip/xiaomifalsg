@@ -9,9 +9,11 @@ export interface AdminOrder extends Order {
 export interface AdminOrderPage extends Omit<OrderPage, 'items'> { items: AdminOrder[] }
 export interface AdminOrderFilters { q?: string; status?: string; offset?: number; sort?: 'newest' | 'oldest'; limit?: number }
 export type AdminView = 'dashboard' | 'orders' | 'settings' | 'tariffs';
+export interface AdminStaleOrder { id: number; public_no: string; status: string; status_name: string; updated_at: string; days: number }
 export interface AdminDashboard {
   counts: Record<string, number>; new_today: number; requires_action: number; total_orders: number; rate_stale: boolean | null;
   stats: { orders_total_rub: string; calculated_commission_rub: string } | null;
+  stale_order_days: number; stale_orders: AdminStaleOrder[];
 }
 export interface RateHistory { id: number; old_rate: string; new_rate: string; changed_by: number; changed_at: string; changed_by_user?: User | null }
 export interface SettingsInput { rate_cny_rub: string; commission_percent: string; commission_min_rub: string }

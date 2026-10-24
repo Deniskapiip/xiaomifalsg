@@ -21,6 +21,16 @@ export function AdminDashboard({ config, role, onNavigate }: { config: AppConfig
       <section className="card admin-stat-card"><span className="muted">Новых сегодня</span><strong className="admin-stat-value">{data.new_today}</strong><span className="field-hint">С 00:00 МСК</span></section>
       <section className="card admin-stat-card"><span className="muted">Требуют действий</span><strong className="admin-stat-value">{data.requires_action}</strong><span className="field-hint">Обработка и склад в Китае</span></section>
     </div>
+    {data.stale_orders.length > 0 && <section className="card card--glow stale-card">
+      <div className="section-heading"><h2>Зависшие заказы</h2><span className="chip chip--accent">{data.stale_orders.length}</span></div>
+      <p className="field-hint">Статус не менялся больше {data.stale_order_days} дн. — проверьте заказ и обновите этап.</p>
+      <div className="stale-list">{data.stale_orders.map(row => <button type="button" className="stale-item" key={row.id} onClick={() => onNavigate({ name: 'admin-order', id: row.id })}>
+        <span className="stale-item__no">{row.public_no}</span>
+        <span className="stale-item__status">{row.status_name}</span>
+        <span className="stale-item__days">{row.days} дн.</span>
+        <Icon name="chevron-right" size={16} />
+      </button>)}</div>
+    </section>}
     <section className="page-stack"><div className="section-heading"><h2>По статусам</h2><p className="muted text-small">Выберите статус, чтобы открыть заказы</p></div><div className="admin-status-grid">{statuses.map(status => <button type="button" className="card admin-status-card" key={status.key} onClick={() => openOrders(status.key)}><span aria-hidden="true">{status.icon}</span><span>{status.name}</span><strong>{data.counts[status.key] ?? 0}</strong></button>)}</div></section>
     {role === 'owner' && data.stats !== null && <>
       <section className="card card--glow"><div className="inline-row space-between"><h2>Курс и комиссия</h2><Icon name="settings" size={24} /></div><p className="admin-money">1 ¥ = {decimalNumber(config.rate_cny_rub, 4)} ₽</p><p className="muted text-small">Курс обновлён: {dateMsk(config.rate_updated_at)}</p><p className="muted text-small">Комиссия {decimalNumber(config.commission_percent, 2)}%, минимум {money(config.commission_min_rub)}.</p>{data.rate_stale && <p className="notice notice--warning" role="status">Курс не обновлялся больше 24 часов. Проверьте его перед оформлением новых заказов.</p>}<button type="button" className="button button--secondary" onClick={() => onNavigate({ name: 'admin', view: 'settings' })}>Изменить настройки<Icon name="arrow-right" size={18} /></button></section>

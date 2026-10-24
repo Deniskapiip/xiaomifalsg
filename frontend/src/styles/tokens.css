@@ -217,3 +217,15 @@
   --platform-pinduoduo: #c0201a;
   --platform-unknown: #62738d;
 }
+
+/* Дополнительные цветовые акценты для градиентов (палитра сохранена). */
+:root {
+  --rgb-aqua: 56, 182, 255;
+  --rgb-violet: 124, 131, 255;
+  --rgb-mint: 74, 222, 160;
+}
+:root[data-theme='light'] {
+  --rgb-aqua: 23, 100, 192;
+  --rgb-violet: 96, 92, 214;
+  --rgb-mint: 20, 127, 70;
+}

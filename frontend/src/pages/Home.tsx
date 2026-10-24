@@ -4,6 +4,7 @@ import { useOrders } from '../api/hooks';
 import { OrderCard } from '../components/OrderCard';
 import { EmptyState, ErrorState, Skeleton } from '../components/UiStates';
 import { Icon } from '../components/Icon';
+import { StatusBadge } from '../components/StatusBadge';
 import { decimalNumber, shortDateMsk } from '../lib/format';
 import { addToHomeScreen, canAddToHomeScreen, haptic, homeScreenStatus, openTelegram } from '../lib/telegram';
 
@@ -37,18 +38,32 @@ export function Home({ config, user, onNavigate }: { config: AppConfig; user: Us
   const showHomeOffer = canAddToHomeScreen() && homeStatus !== 'added';
   const deliveredOrder = completed.data?.items.find(order => order.status === 'delivered');
   const reviewContact = config.contacts.review || config.contacts.manager;
+  const latestOrder = orders.data?.items[0];
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 5) return 'Доброй ночи';
+    if (hour < 12) return 'Доброе утро';
+    if (hour < 18) return 'Добрый день';
+    return 'Добрый вечер';
+  })();
 
   return (
     <div className="page page-stack">
       <section className="hero card card--glow">
         <div className="hero-copy">
           <p className="eyebrow">ИЗ КИТАЯ — К ВАМ</p>
-          <h1 className="page-title home-greeting">Здравствуйте, {user.first_name || 'рады вас видеть'}!</h1>
+          <h1 className="page-title home-greeting">{greeting}, {user.first_name || 'рады вас видеть'}!</h1>
           <p className="page-description">Товар по вашей ссылке. Понятный расчёт. Каждый этап — в одном приложении.</p>
         </div>
         <div className="hero-route" aria-hidden="true">
           <span>CN</span><Icon name="arrow-right" size={26} /><span>RU</span>
         </div>
+        {latestOrder && <button type="button" className="hero-latest" onClick={() => onNavigate({ name: 'order', id: latestOrder.id })}>
+          <span className="hero-latest__label">Последний заказ</span>
+          <strong>{latestOrder.public_no}</strong>
+          <StatusBadge status={latestOrder.status} statuses={config.statuses} />
+          <Icon name="chevron-right" size={16} />
+        </button>}
         <button className="button button--primary button--block" onClick={() => onNavigate({ name: 'wizard' })}>
           Рассчитать и оформить заказ <Icon name="arrow-right" size={20} />
         </button>

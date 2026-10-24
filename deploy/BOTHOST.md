@@ -47,6 +47,7 @@ Bothost сам добавляет `BOT_TOKEN`, `DOMAIN`, `PORT`, `BOT_ID`, `USER
 | `OWNER_USERNAME` / `MANAGER_USERNAME` / `CHANNEL_USERNAME` | публичные контакты |
 | `REVIEW_USERNAME` | группа/канал отзывов (по умолчанию `taojiotziv`) |
 | `REVIEW_REMINDER_ENABLED` / `REVIEW_REMINDER_HOURS` | напоминание об отзыве через N часов после «Доставлен» (по умолчанию 48, один раз) |
+| `DIGEST_ENABLED` / `DIGEST_HOUR` / `STALE_ORDER_DAYS` | ежедневная сводка владельцу/менеджеру в бота (по умолчанию 10:00 МСК) и порог «зависших» заказов (3 дня) |
 | `TRACKING_REFRESH_HOURS` / `TRACKING_IMMEDIATE_REFRESH` / `BACKUP_ENABLED` / `BACKUP_KEEP` / `DOBROPOST_API_KEY` / `DOBROPOST_API_BASE` / `DOBROPOST_PROXY_BASE` | проверка статуса каждый час, мгновенная проверка при сохранении трека, ежедневный бэкап SQLite в `data/backups` (последние 7) и официальный трекинг-API Добропоста; ключ публичный, прокси — fallback |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` |
 | `INSURANCE_PERCENT` / `PACKING_FEE_RUB` / `PHOTO_REPORT_FEE_RUB` | цены доп. услуг: 10% страховки (только на тарифах с флажком страховки), 299 ₽ за коробку обрешётки, 150 ₽ фотоотчёт |

@@ -421,6 +421,15 @@ class SettingsOut(Output):
     rate_history: list[RateHistoryOut]
 
 
+class StaleOrderOut(Output):
+    id: int
+    public_no: str
+    status: str
+    status_name: str
+    updated_at: datetime
+    days: int
+
+
 class DashboardOut(Output):
     counts: dict[str, int]
     new_today: int
@@ -428,3 +437,5 @@ class DashboardOut(Output):
     total_orders: int
     rate_stale: bool | None
     stats: dict[str, str] | None
+    stale_order_days: int = 3
+    stale_orders: list[StaleOrderOut] = Field(default_factory=list)

@@ -11,17 +11,17 @@ from app.db_types import utcnow
 from app.deps import Principal, administrator, owner, session
 from app.errors import AppError
 from app.models import Order, Tariff, User
-from app.schemas import (AdminOrderOut, AdminOrderPage, DashboardOut, NoteIn, SettingsIn, SettingsOut, StatusIn,
-                         TariffIn, TariffOut, TrackSetIn)
+from app.schemas import (AdminOrderOut, AdminOrderPage, DashboardOut, NoteIn, SettingsIn, SettingsOut, StaleOrderOut,
+                         StatusIn, TariffIn, TariffOut, TrackSetIn)
 from app.services.orders import change_note, change_status, change_track, find_order, order_output
 from app.services.settings import get_app_settings, save_tariff, settings_output, update_settings
-from app.statuses import Status
+from app.statuses import BY_KEY, Status
 
 router = APIRouter(prefix="/admin", tags=["Администрирование"])
 
 
 @router.get("/dashboard", response_model=DashboardOut)
-async def dashboard(principal: Principal = Depends(administrator), db: AsyncSession = Depends(session)):
+async def dashboard(request: Request, principal: Principal = Depends(administrator), db: AsyncSession = Depends(session)):
     now = utcnow()
     midnight = datetime.combine(now.astimezone(ZoneInfo("Europe/Moscow")).date(), time.min, tzinfo=ZoneInfo("Europe/Moscow")).astimezone(timezone.utc)
     grouped = (await db.execute(select(Order.status, func.count()).group_by(Order.status))).all()
@@ -29,6 +29,15 @@ async def dashboard(principal: Principal = Depends(administrator), db: AsyncSess
     counts.update(dict(grouped))
     new_today = await db.scalar(select(func.count()).select_from(Order).where(Order.created_at >= midnight))
     stale, stats = None, None
+    settings = request.app.state.settings
+    stale_after = now - timedelta(days=settings.stale_order_days)
+    stale_rows = (await db.scalars(
+        select(Order).where(Order.status.not_in([Status.delivered.value, Status.cancelled.value]),
+                            Order.updated_at < stale_after)
+        .order_by(Order.updated_at, Order.id).limit(12))).all()
+    stale_orders = [StaleOrderOut(id=row.id, public_no=row.public_no, status=row.status,
+                                  status_name=BY_KEY[row.status]["name"], updated_at=row.updated_at,
+                                  days=max(1, (now - row.updated_at).days)) for row in stale_rows]
     if principal.role == "owner":
         current = await get_app_settings(db)
         stale = now - current.rate_updated_at > timedelta(hours=24)
@@ -41,7 +50,8 @@ async def dashboard(principal: Principal = Depends(administrator), db: AsyncSess
         stats = {"orders_total_rub": format(total_rub, "f"), "calculated_commission_rub": format(commission_rub, "f")}
     return DashboardOut(counts=counts, new_today=new_today,
                         requires_action=counts[Status.processing] + counts[Status.at_cn_warehouse],
-                        total_orders=sum(counts.values()), rate_stale=stale, stats=stats)
+                        total_orders=sum(counts.values()), rate_stale=stale, stats=stats,
+                        stale_order_days=settings.stale_order_days, stale_orders=stale_orders)
 
 
 @router.get("/orders", response_model=AdminOrderPage)
