@@ -3,6 +3,8 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# tsc проверяет тесты, а pricing.test.ts импортирует ../../../shared/pricing_cases.json.
+COPY shared/ /build/shared/
 RUN npm run build
 
 FROM python:3.13-slim-bookworm AS app
