@@ -61,11 +61,15 @@ def map_provider_status(raw: str) -> Status | None:
 
 
 def should_advance(current: str, target: Status) -> bool:
+    """Статус заказа идёт вперёд по данным Добропоста из любого нетерминального этапа.
+
+    Раньше авто-зона начиналась только с «Ожидает оплаты доставки», но на практике
+    менеджер может ввести трек раньше — и клиент должен видеть реальный этап
+    («На таможне в России», «В пути до получателя»), а не «Оформляется».
+    """
     if current in TERMINAL:
         return False
     if target == Status.cancelled:
-        return False
-    if Status(current) not in AUTO_ZONE:
         return False
     return BY_KEY[target]["order"] > BY_KEY[current]["order"]
 

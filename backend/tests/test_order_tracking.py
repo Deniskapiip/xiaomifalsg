@@ -60,7 +60,8 @@ async def test_auto_status_after_delivery_payment(client, app, settings, auth_he
         assert delivered_jobs == 1
 
 
-async def test_no_auto_status_before_delivery_payment(client, app, settings, auth_headers, order_payload, monkeypatch):
+async def test_auto_status_works_before_delivery_payment(client, app, settings, auth_headers, order_payload, monkeypatch):
+    """Трек ввели раньше «Ожидает оплаты доставки» — статус заказа всё равно идёт по Добропосту."""
     customer = await auth_headers(566)
     order = (await client.post("/api/orders", json=order_payload, headers=customer)).json()
     manager = await auth_headers(222)
@@ -68,13 +69,13 @@ async def test_no_auto_status_before_delivery_payment(client, app, settings, aut
                       json={"number": "DBRPST20002", "notify": False})
     await set_due(app, order["id"])
 
-    provider(monkeypatch, "Доставлен получателю", True)
+    provider(monkeypatch, "Начало таможенного оформления", True)
     worker = OrderTrackingWorker(app.state.sessions, settings)
     assert await worker.refresh_due() >= 1
 
     saved = (await client.get(f"/api/orders/{order['id']}", headers=customer)).json()
-    assert saved["status"] == "processing"
-    assert saved["tracking_status_text"] == "Доставлен получателю"
+    assert saved["status"] == "ru_customs"
+    assert saved["tracking_status_text"] == "Начало таможенного оформления"
 
 
 async def test_auto_status_never_rolls_back(client, app, settings, auth_headers, order_payload, monkeypatch):
@@ -149,7 +150,9 @@ def test_status_mapping_and_advance_rules():
     assert should_advance("awaiting_delivery_payment", Status.delivered) is True
     assert should_advance("to_recipient", Status.delivered) is True
     assert should_advance("to_recipient", Status.ru_customs) is False
-    assert should_advance("processing", Status.delivered) is False
+    assert should_advance("processing", Status.delivered) is True
+    assert should_advance("processing", Status.ru_customs) is True
+    assert should_advance("purchased", Status.processing) is False
     assert should_advance("delivered", Status.delivered) is False
     assert should_advance("cancelled", Status.delivered) is False
 
