@@ -1,17 +1,36 @@
 from datetime import timedelta
+from decimal import Decimal, ROUND_CEILING, localcontext
 
 from sqlalchemy import func, or_, select
 
 from app.db_types import utcnow
 from app.errors import AppError
-from app.models import NotificationJob, NotificationLog, Order, OrderEvent, User
+from app.models import NotificationJob, NotificationLog, Order, OrderEvent, OrderItem, User
 from app.platforms import identify_platform
-from app.schemas import (AdminEventOut, AdminOrderOut, EventOut, NotificationOut, OrderCreate, OrderOut, StatusIn,
-                         TrackSetIn, UserOut)
+from app.schemas import (AdminEventOut, AdminOrderOut, EventOut, NotificationOut, OrderCreate, OrderItemIn,
+                         OrderItemOut, OrderOut, StatusIn, TrackSetIn, UserOut)
 from app.services.notifications import is_local_preview_order
 from app.services.pricing import calculate, rub_per_kg
 from app.services.settings import active_tariff, get_app_settings
 from app.statuses import Status, requires_confirmation
+
+
+def normalized_items(data: OrderCreate) -> list[OrderItemIn]:
+    """Multi-item order or the legacy single-item payload."""
+    if data.items:
+        return list(data.items)
+    # Legacy fields are already validated Decimals; OrderItemIn expects strings.
+    return [OrderItemIn(link=data.link, price_cny=format(data.price_cny, "f"), quantity=data.quantity or 1,
+                        item_title=data.item_title, comment=data.comment)]
+
+
+def item_output(item: OrderItem, rate: Decimal) -> OrderItemOut:
+    with localcontext() as context:
+        context.prec = 50
+        goods = int((item.price_cny * item.quantity * rate).to_integral_value(rounding=ROUND_CEILING))
+    return OrderItemOut(id=item.id, position=item.position, link=item.link, platform=item.platform,
+                        item_title=item.item_title, price_cny=item.price_cny, quantity=item.quantity,
+                        comment=item.comment, goods_rub=goods)
 
 
 async def find_order(db, order_id: int, user_id: int | None = None):
@@ -59,15 +78,18 @@ async def create_order(db, data: OrderCreate, user: User, settings):
     current = await get_app_settings(db)
     price_per_kg_rub = rub_per_kg(tariff.price_per_kg, tariff.price_currency, current.rate_cny_rub)
     insurance_enabled = data.insurance_enabled and tariff.insurance_available
-    prices = calculate(data.price_cny, data.quantity, current.rate_cny_rub, current.commission_percent,
+    items = normalized_items(data)
+    total_cny = sum((Decimal(item.price_cny) * item.quantity for item in items), Decimal(0))
+    first = items[0]
+    prices = calculate(total_cny, 1, current.rate_cny_rub, current.commission_percent,
                        current.commission_min_rub, price_per_kg_rub, data.weight_kg,
                        insurance_enabled=insurance_enabled, packing_enabled=data.packing_enabled,
                        photo_report_enabled=data.photo_report_enabled, insurance_percent=settings.insurance_percent,
                        packing_fee_rub=settings.packing_fee_rub, photo_report_fee_rub=settings.photo_report_fee_rub,
                        boxes=data.boxes)
-    order = Order(user_id=user.id, idempotency_key=str(data.idempotency_key), link=data.link,
-                  platform=identify_platform(data.link).value, item_title=data.item_title, price_cny=data.price_cny,
-                  quantity=data.quantity, comment=data.comment, tariff_id=tariff.id, tariff_name=tariff.name,
+    order = Order(user_id=user.id, idempotency_key=str(data.idempotency_key), link=first.link,
+                  platform=identify_platform(first.link).value, item_title=first.item_title, price_cny=total_cny,
+                  quantity=1, comment=first.comment, tariff_id=tariff.id, tariff_name=tariff.name,
                   tariff_price_per_kg=price_per_kg_rub, tariff_price_currency=tariff.price_currency,
                   tariff_price_value=tariff.price_per_kg, rate=current.rate_cny_rub,
                   commission_percent=current.commission_percent, commission_min_rub=current.commission_min_rub,
@@ -81,12 +103,17 @@ async def create_order(db, data: OrderCreate, user: User, settings):
     db.add(order)
     await db.flush()
     order.public_no = f"TC-{order.id:06d}"
+    for position, item in enumerate(items):
+        db.add(OrderItem(order_id=order.id, position=position, link=item.link,
+                         platform=identify_platform(item.link).value, item_title=item.item_title,
+                         price_cny=item.price_cny, quantity=item.quantity, comment=item.comment))
     local_preview = settings.dev_mode and user.tg_id == settings.dev_user_tg_id
     payload = {"options": {"insurance": insurance_enabled, "packing": data.packing_enabled,
                            "photo_report": data.photo_report_enabled},
                "extras_total_rub": str(prices.extras_total_rub), "boxes": data.boxes,
                "tariff_price_currency": tariff.price_currency,
-               "tariff_price_value": str(tariff.price_per_kg)}
+               "tariff_price_value": str(tariff.price_per_kg),
+               "items": len(items), "items_total_cny": str(total_cny)}
     if local_preview:
         payload["local_preview"] = True
     event = OrderEvent(order_id=order.id, actor_user_id=user.id, type="created", to_status=Status.processing,
@@ -122,6 +149,10 @@ async def change_status(db, order: Order, data: StatusIn, actor_id: int):
                           from_status=previous, to_status=data.status.value,
                           payload={"old_amount_rub": None if old_amount is None else str(old_amount),
                                    "delivery_amount_rub": str(order.delivery_final_rub)}))
+    if data.status == Status.cancelled:
+        reason = " ".join((data.reason or "").split())[:500]
+        if reason:
+            event.payload = {**event.payload, "cancel_reason": reason}
     db.add(event)
     await db.flush()
     if data.notify:
@@ -152,7 +183,13 @@ async def change_track(db, order: Order, data: TrackSetIn, actor_id: int):
 
 
 async def order_output(db, order: Order, admin: bool = False, include_events: bool = True):
-    result = OrderOut.model_validate(order)
+    # Do not touch the lazy ORM relationship: in async SQLAlchemy it would raise
+    # MissingGreenlet. Build the schema from columns and attach items explicitly.
+    data = {name: getattr(order, name) for name in OrderOut.model_fields if name not in {"items", "events"}}
+    result = OrderOut(**data)
+    rows = (await db.scalars(select(OrderItem).where(OrderItem.order_id == order.id)
+                             .order_by(OrderItem.position, OrderItem.id))).all()
+    result.items = [item_output(row, order.rate) for row in rows]
     events = []
     if include_events:
         query = select(OrderEvent).where(OrderEvent.order_id == order.id).order_by(OrderEvent.created_at, OrderEvent.id)

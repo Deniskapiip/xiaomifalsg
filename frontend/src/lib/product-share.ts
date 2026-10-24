@@ -40,8 +40,9 @@ export function parseShareText(value: string): ShareLink | null {
   const url = [...found][0];
   const byHost = platformFromUrl(url);
   const hinted = platformFromShareText(value);
-  // tb.cn is shared by both Taobao and Xianyu; the Chinese text decides.
-  const ambiguousHost = byHost === 'taobao' && /(^|\.)tb\.cn$/i.test(new URL(url).hostname);
+  // Short tb.cn hosts are shared by Taobao, Tmall and Xianyu: the Chinese text
+  // decides, while m.tb.cn without a hint defaults to Goofish (owner's rule).
+  const ambiguousHost = /(^|\.)tb\.cn$/i.test(new URL(url).hostname);
   const platform = ambiguousHost && hinted ? hinted : byHost;
   return { url, platform };
 }

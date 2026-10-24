@@ -16,6 +16,7 @@ const deliverySteps = [
 
 export function Home({ config, user, onNavigate }: { config: AppConfig; user: User; onNavigate: Navigate }) {
   const orders = useOrders({ limit: 3 });
+  const completed = useOrders({ group: 'completed', limit: 5 });
   const [homeStatus, setHomeStatus] = useState<TelegramHomeScreenStatus | null>(null);
   const [homeHint, setHomeHint] = useState('');
 
@@ -34,6 +35,8 @@ export function Home({ config, user, onNavigate }: { config: AppConfig; user: Us
   }
 
   const showHomeOffer = canAddToHomeScreen() && homeStatus !== 'added';
+  const deliveredOrder = completed.data?.items.find(order => order.status === 'delivered');
+  const reviewContact = config.contacts.review || config.contacts.manager;
 
   return (
     <div className="page page-stack">
@@ -85,6 +88,12 @@ export function Home({ config, user, onNavigate }: { config: AppConfig; user: Us
           : orders.data?.items.length ? <div className="order-list">{orders.data.items.map((order) => <OrderCard key={order.id} order={order} config={config} onClick={() => onNavigate({ name: 'order', id: order.id })} />)}</div>
           : <EmptyState title="Ваш первый заказ впереди" description="Найдите товар на китайской площадке и начните со ссылки. Мы покажем расчёт до оформления." actionLabel="Рассчитать заказ" onAction={() => onNavigate({ name: 'wizard' })} />}
       </section>
+
+      {deliveredOrder && <section className="card card--glow" aria-label="Отзыв о заказе">
+        <div className="section-heading"><h2>Отзыв о заказе</h2><Icon name="send" size={20} /></div>
+        <p className="muted">Вам понравился ваш заказ {deliveredOrder.public_no}? Оставьте отзыв — это помогает нам и другим покупателям.</p>
+        <button className="button button--primary button--block" type="button" onClick={() => openTelegram(reviewContact, `Здравствуйте! Хочу оставить отзыв о заказе ${deliveredOrder.public_no}.`)}><Icon name="send" size={18} />Оставить отзыв</button>
+      </section>}
 
       <section className="contact-grid" aria-label="Связаться с нами">
         <button className="contact-card card" onClick={() => openTelegram(config.contacts.manager)}><Icon name="send" size={24} /><span><strong>Написать менеджеру</strong><small>@{config.contacts.manager}</small></span><Icon name="arrow-right" size={18} /></button>

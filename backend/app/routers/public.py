@@ -36,7 +36,8 @@ async def config(request: Request, db: AsyncSession = Depends(session)):
                      commission_percent=current.commission_percent, commission_min_rub=str(current.commission_min_rub),
                      insurance_percent=settings.insurance_percent, packing_fee_rub=str(settings.packing_fee_rub),
                      photo_report_fee_rub=str(settings.photo_report_fee_rub),
-                     contacts={"owner": settings.owner_username, "manager": settings.manager_username, "channel": settings.channel_username},
+                     contacts={"owner": settings.owner_username, "manager": settings.manager_username,
+                               "channel": settings.channel_username, "review": settings.review_username},
                      statuses=list(BY_KEY.values()), tariffs=[TariffOut.model_validate(x) for x in tariffs])
 
 

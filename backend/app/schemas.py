@@ -77,28 +77,70 @@ class CalcIn(Input):
     _decimal_fields = field_validator("price_cny", "weight_kg", mode="before")(exact_decimal)
 
 
-class OrderCreate(CalcIn):
-    # Submitted client totals (and any attempted privileged fields) are ignored.
-    model_config = ConfigDict(extra="ignore")
-    idempotency_key: UUID
+def safe_order_link(value: str) -> str:
+    value = value.strip()
+    if any(ord(c) < 32 or c.isspace() for c in value):
+        raise ValueError("Ссылка не должна содержать пробелы или управляющие символы")
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        raise ValueError("Некорректная ссылка") from None
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("Нужна полная ссылка http:// или https:// без логина и пароля")
+    return value
+
+
+class OrderItemIn(Input):
     link: str = Field(min_length=1, max_length=2000)
+    price_cny: Decimal = Field(ge=Decimal("0.01"), le=Decimal("1000000"), max_digits=12, decimal_places=2)
+    quantity: StrictInt = Field(default=1, ge=1, le=999)
     item_title: str = Field(default="", max_length=200)
     comment: str = Field(default="", max_length=500)
+    _price = field_validator("price_cny", mode="before")(exact_decimal)
 
     @field_validator("link")
     @classmethod
     def safe_link(cls, value: str):
-        value = value.strip()
-        if any(ord(c) < 32 or c.isspace() for c in value):
-            raise ValueError("Ссылка не должна содержать пробелы или управляющие символы")
-        try:
-            parsed = urlsplit(value)
-            port = parsed.port
-        except ValueError:
-            raise ValueError("Некорректная ссылка") from None
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
-            raise ValueError("Нужна полная ссылка http:// или https:// без логина и пароля")
-        return value
+        return safe_order_link(value)
+
+
+def _optional_exact(value):
+    return None if value is None else exact_decimal(value)
+
+
+class OrderCreate(Input):
+    # Submitted client totals (and any attempted privileged fields) are ignored.
+    model_config = ConfigDict(extra="ignore")
+    idempotency_key: UUID
+    tariff_id: StrictInt = Field(gt=0)
+    weight_kg: Decimal = Field(ge=Decimal("0.01"), le=Decimal("1000"), max_digits=8, decimal_places=3)
+    boxes: StrictInt = Field(default=1, ge=1, le=99)
+    insurance_enabled: bool = False
+    packing_enabled: bool = False
+    photo_report_enabled: bool = False
+    # Мультизаказ: 1..20 позиций, у каждой своя ссылка, цена, количество, название и комментарий.
+    items: list[OrderItemIn] = Field(default_factory=list, max_length=20)
+    # Совместимость со старым API: одна позиция отдельными полями.
+    link: str | None = Field(default=None, max_length=2000)
+    price_cny: Decimal | None = Field(default=None, ge=Decimal("0.01"), le=Decimal("1000000"), max_digits=12, decimal_places=2)
+    quantity: StrictInt | None = Field(default=None, ge=1, le=999)
+    item_title: str = Field(default="", max_length=200)
+    comment: str = Field(default="", max_length=500)
+    _decimals = field_validator("weight_kg", "price_cny", mode="before")(_optional_exact)
+
+    @field_validator("link")
+    @classmethod
+    def safe_link(cls, value):
+        return None if value is None else safe_order_link(value)
+
+    @model_validator(mode="after")
+    def require_at_least_one_item(self):
+        if self.items:
+            return self
+        if self.link is None or self.price_cny is None:
+            raise ValueError("Передайте хотя бы одну ссылку на товар с ценой")
+        return self
 
 
 class TrackSetIn(Input):
@@ -214,6 +256,21 @@ class AdminEventOut(EventOut):
     actor: UserOut | None = None
 
 
+class OrderItemOut(Output):
+    id: int
+    position: int
+    link: str
+    platform: str
+    item_title: str
+    price_cny: Decimal
+    quantity: int
+    comment: str
+    goods_rub: int = 0
+    @field_serializer("goods_rub")
+    def serialize_item_goods(self, value: int):
+        return str(value)
+
+
 class OrderOut(Output):
     id: int
     public_no: str
@@ -250,6 +307,7 @@ class OrderOut(Output):
     status: str
     created_at: datetime
     updated_at: datetime
+    items: list[OrderItemOut] = Field(default_factory=list)
     events: list[EventOut] = Field(default_factory=list)
     @field_serializer("commission_min_rub", "goods_rub", "commission_rub", "total_rub", "delivery_estimate_rub", "delivery_final_rub",
                       "insurance_rub", "packing_rub", "photo_report_rub", "extras_total_rub", "total_with_extras_rub")
@@ -293,6 +351,8 @@ class StatusIn(Input):
     delivery_amount_rub: str | None = Field(default=None, pattern=r"^[1-9][0-9]{0,14}$")
     notify: bool = True
     confirmed: bool = False
+    # Причина отмены для менеджера: сохраняется в истории заказа и в уведомлении клиенту.
+    reason: str | None = Field(default=None, max_length=500)
     @model_validator(mode="after")
     def require_delivery(self):
         if self.status == Status.awaiting_delivery_payment and self.delivery_amount_rub is None:

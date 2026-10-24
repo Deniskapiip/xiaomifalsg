@@ -1,5 +1,5 @@
 import { Exact } from './pricing';
-import type { StatusDefinition, TariffCurrency } from '../api/types';
+import type { Order, OrderItem, StatusDefinition, TariffCurrency } from '../api/types';
 
 const integerFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 
@@ -25,3 +25,19 @@ export function boxesLabel(value: number): string {
   const word = last === 1 && lastTwo !== 11 ? 'коробка' : [2, 3, 4].includes(last) && ![12, 13, 14].includes(lastTwo) ? 'коробки' : 'коробок';
   return `${value} ${word}`;
 }
+/** «1 позиция», «3 позиции», «7 позиций». */
+export function positionsLabel(value: number): string {
+  const last = value % 10, lastTwo = value % 100;
+  const word = last === 1 && lastTwo !== 11 ? 'позиция' : [2, 3, 4].includes(last) && ![12, 13, 14].includes(lastTwo) ? 'позиции' : 'позиций';
+  return `${value} ${word}`;
+}
+export function itemTitle(item: Pick<OrderItem, 'item_title' | 'link'>): string {
+  if (item.item_title.trim()) return item.item_title;
+  return productDomain(item.link);
+}
+/** Позиции заказа; для старых заказов без items — одна позиция из legacy-полей. */
+export function orderItemList(order: Order): OrderItem[] {
+  if (order.items?.length) return order.items;
+  return [{ id: 0, position: 1, link: order.link, platform: order.platform, item_title: order.item_title, price_cny: order.price_cny, quantity: order.quantity, comment: order.comment, goods_rub: order.goods_rub }];
+}
+

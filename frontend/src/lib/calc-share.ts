@@ -2,8 +2,18 @@ import type { AppConfig, Quote } from '../api/types';
 import type { DraftFields } from './validation';
 import { platformLabel } from './validation';
 import { decimalNumber, money } from './format';
+import { Exact } from './pricing';
 
 export interface QuoteSummaryInput { quote: Quote; draft: DraftFields; config: AppConfig }
+
+/** Сумма позиций в юанях (цена × количество) — то же число, что уходит в /calc. */
+export function itemsTotalCny(draft: DraftFields): string {
+  return draft.items.reduce((sum, item) => {
+    const price = /^\d+(?:\.\d+)?$/.test(item.price_cny.trim().replace(',', '.')) ? item.price_cny : '0';
+    const quantity = /^\d+$/.test(item.quantity) ? Number(item.quantity) : 0;
+    return sum.plus(new Exact(price.trim().replace(',', '.')).times(quantity));
+  }, new Exact(0)).toFixed();
+}
 
 /**
  * Human-readable calculation summary copied to the clipboard or forwarded to the
@@ -11,11 +21,18 @@ export interface QuoteSummaryInput { quote: Quote; draft: DraftFields; config: A
  * in the message are exactly the numbers the client saw in the Mini App.
  */
 export function quoteSummaryText({ quote, draft, config }: QuoteSummaryInput): string {
-  const platform = platformLabel(draft.link);
   const lines: string[] = ['🧮 Taoji Cargo — расчёт заказа'];
-  if (draft.link) lines.push(`Площадка: ${platform.known ? platform.name : 'не определена'}`);
-  if (draft.item_title.trim()) lines.push(`Товар: ${draft.item_title.trim()}`);
-  lines.push(`${decimalNumber(draft.price_cny, 2)} ¥ × ${draft.quantity} × ${decimalNumber(quote.rate, 4)} = ${money(quote.goods_rub)}`);
+  if (draft.items.length) {
+    lines.push(draft.items.length === 1 ? 'Позиция:' : 'Позиции:');
+    draft.items.forEach((item, index) => {
+      const platform = platformLabel(item.link);
+      const title = item.item_title.trim();
+      const itemCny = new Exact(item.price_cny.trim().replace(',', '.') || '0').times(Number(item.quantity) || 0);
+      lines.push(`${index + 1}. ${title || (platform.known ? platform.name : 'Товар')}${title && platform.known ? ` · ${platform.name}` : ''}`);
+      lines.push(`   ${decimalNumber(item.price_cny, 2)} ¥ × ${item.quantity || 1} = ${decimalNumber(itemCny.toFixed(), 2)} ¥`);
+    });
+  }
+  lines.push(`Товар: ${decimalNumber(itemsTotalCny(draft), 2)} ¥ × ${decimalNumber(quote.rate, 4)} = ${money(quote.goods_rub)}`);
   lines.push(`Комиссия: ${money(quote.commission_rub)}${quote.commission_is_minimum ? ' (минимальная)' : ''}`);
   const services: string[] = [];
   if (draft.insurance_enabled) services.push(`страховка ${money(quote.insurance_rub)}`);

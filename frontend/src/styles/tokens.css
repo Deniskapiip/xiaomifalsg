@@ -182,3 +182,24 @@
   --shadow-card: 0 12px 36px rgba(35, 56, 88, 0.055);
   --shadow-accent: 0 8px 28px rgba(23, 100, 192, 0.15);
 }
+
+/* Brand colors of Chinese marketplaces. Used by the small colored platform badges. */
+:root {
+  --platform-goofish: #ffb300;
+  --platform-poizon: #22d3ee;
+  --platform-taobao: #ff6a00;
+  --platform-tmall: #ff2d55;
+  --platform-1688: #ff7a1a;
+  --platform-pinduoduo: #e02e24;
+  --platform-unknown: #7787a7;
+}
+
+:root[data-theme='light'] {
+  --platform-goofish: #c98700;
+  --platform-poizon: #0891b2;
+  --platform-taobao: #d95800;
+  --platform-tmall: #d81b3f;
+  --platform-1688: #d95c00;
+  --platform-pinduoduo: #c0201a;
+  --platform-unknown: #62738d;
+}

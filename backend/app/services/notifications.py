@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 
 from app.bot import texts
 from app.db_types import utcnow
-from app.models import NotificationJob, NotificationLog, Order, OrderEvent, User
+from app.models import NotificationJob, NotificationLog, Order, OrderEvent, OrderItem, User
 
 log = logging.getLogger("taoji")
 
@@ -64,7 +64,9 @@ class NotificationWorker:
                 order, event = await db.get(Order, job.order_id), await db.get(OrderEvent, job.event_id)
                 if job.kind == "admin_created":
                     client = await db.get(User, order.user_id)
-                    content = texts.admin_notification(order, client, self.settings)
+                    items = (await db.scalars(select(OrderItem).where(OrderItem.order_id == order.id)
+                                              .order_by(OrderItem.position, OrderItem.id))).all()
+                    content = texts.admin_notification(order, client, self.settings, items)
                     chat_link = f"https://t.me/{client.username}" if client.username else f"tg://user?id={client.tg_id}"
                     buttons = [[InlineKeyboardButton(text=texts.BUTTON_ADMIN, web_app=WebAppInfo(url=self.settings.webapp_url.rstrip("/") + f"/?open=order_{order.id}"))],
                                [InlineKeyboardButton(text=texts.BUTTON_CLIENT, url=chat_link)]]

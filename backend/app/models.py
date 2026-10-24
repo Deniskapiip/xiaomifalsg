@@ -2,7 +2,7 @@ from decimal import Decimal
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, false, text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.db_types import ExactDecimal, UTCDateTime, utcnow
 from app.statuses import Status
@@ -107,6 +107,26 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(40), default=Status.processing)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+    items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order",
+                                                    cascade="all, delete-orphan", order_by="OrderItem.position")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+    __table_args__ = (
+        Index("ix_order_items_order_position", "order_id", "position"),
+        CheckConstraint("quantity >= 1 AND quantity <= 999", name="order_item_quantity_bounds"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    link: Mapped[str] = mapped_column(String(2000))
+    platform: Mapped[str] = mapped_column(String(20))
+    item_title: Mapped[str] = mapped_column(String(200), default="", server_default=text("''"))
+    price_cny: Mapped[Decimal] = mapped_column(ExactDecimal(12, 2))
+    quantity: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    comment: Mapped[str] = mapped_column(String(500), default="", server_default=text("''"))
+    order: Mapped[Order] = relationship("Order", back_populates="items")
 
 
 class OrderEvent(Base):

@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     owner_username: str = "ZontikTech"
     manager_username: str = "TaojiBuy"
     channel_username: str = "taojicn"
+    # Группа/канал отзывов: клиент открывает её кнопкой «Оставить отзыв» в Mini App.
+    review_username: str = "taojiotziv"
     insurance_percent: Decimal = Field(default=Decimal("10"), ge=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2)
     packing_fee_rub: int = Field(default=299, ge=0, le=1_000_000_000)
     photo_report_fee_rub: int = Field(default=150, ge=0, le=1_000_000_000)
@@ -95,7 +97,7 @@ class Settings(BaseSettings):
                     raise ValueError("Список админов должен содержать положительные числовые ID")
         return value
 
-    @field_validator("owner_username", "manager_username", "channel_username")
+    @field_validator("owner_username", "manager_username", "channel_username", "review_username")
     @classmethod
     def validate_username(cls, value: str) -> str:
         import re

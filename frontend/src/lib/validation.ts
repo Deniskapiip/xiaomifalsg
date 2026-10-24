@@ -1,10 +1,22 @@
 import { Exact } from './pricing';
 import { platformFromUrl, platformName } from './platforms';
 
+/** Одна позиция мультизаказа в черновике: ключ нужен только для React и хранилища. */
+export interface DraftItem { key: string; link: string; price_cny: string; quantity: string; item_title: string; comment: string }
 export interface DraftFields {
-  link: string; price_cny: string; quantity: string; item_title: string; comment: string; tariff_id: number | null; weight_kg: string;
+  items: DraftItem[];
+  tariff_id: number | null; weight_kg: string;
   boxes: string;
   insurance_enabled: boolean; packing_enabled: boolean; photo_report_enabled: boolean;
+}
+export const MAX_ITEMS = 20;
+let itemSequence = 0;
+
+export function newItemKey(): string {
+  try { return crypto.randomUUID(); } catch { itemSequence += 1; return `item-${Date.now().toString(36)}-${itemSequence}`; }
+}
+export function createDraftItem(values: Partial<Omit<DraftItem, 'key'>> = {}, key: string = newItemKey()): DraftItem {
+  return { key, link: '', price_cny: '', quantity: '1', item_title: '', comment: '', ...values };
 }
 export function normalizeDecimal(value: string): string { return value.trim().replace(',', '.'); }
 export function decimalValid(value: string, min: string, max: string, places: number): boolean {
@@ -16,6 +28,7 @@ export function decimalValid(value: string, min: string, max: string, places: nu
   return decimal.gte(min) && decimal.lte(max);
 }
 export function boxesValid(value: string): boolean { return /^[1-9]\d?$/.test(value) && Number(value) <= 99; }
+export function quantityValid(value: string): boolean { return /^\d+$/.test(value) && new Exact(value || '0').gte(1) && new Exact(value || '0').lte(999); }
 export function safeHttpUrl(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > 2000 || !/^https?:\/\/[^/\\]/i.test(trimmed) || /\\|\s|[\u0000-\u001f]/.test(trimmed)) return null;
@@ -27,12 +40,29 @@ export function platformLabel(value: string): { name: string; known: boolean } {
   const platform = platformFromUrl(link);
   return platform === 'unknown' ? { name: platformName('unknown'), known: false } : { name: platformName(platform), known: true };
 }
+export function itemErrors(item: DraftItem): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!safeHttpUrl(item.link)) errors.link = 'Укажите полную ссылку http:// или https://, до 2000 символов.';
+  if (!decimalValid(item.price_cny, '0.01', '1000000', 2)) errors.price_cny = 'Цена: от 0,01 до 1 000 000 ¥, не больше двух знаков после запятой.';
+  if (!quantityValid(item.quantity)) errors.quantity = 'Количество: целое число от 1 до 999.';
+  if (item.item_title.length > 200) errors.item_title = 'Название: до 200 символов.';
+  if (item.comment.length > 500) errors.comment = 'Комментарий: до 500 символов.';
+  return errors;
+}
+/** Ошибки позиций, у которых они есть, по ключу позиции. */
+export function itemsErrors(draft: DraftFields): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {};
+  for (const item of draft.items) {
+    const errors = itemErrors(item);
+    if (Object.keys(errors).length) result[item.key] = errors;
+  }
+  return result;
+}
 export function firstStepErrors(draft: DraftFields): Record<string, string> {
   const errors: Record<string, string> = {};
-  if (!safeHttpUrl(draft.link)) errors.link = 'Укажите полную ссылку http:// или https://, до 2000 символов.';
-  if (!decimalValid(draft.price_cny, '0.01', '1000000', 2)) errors.price_cny = 'Цена: от 0,01 до 1 000 000 ¥, не больше двух знаков после запятой.';
-  if (!/^\d+$/.test(draft.quantity) || !new Exact(draft.quantity || '0').gte(1) || !new Exact(draft.quantity || '0').lte(999)) errors.quantity = 'Количество: целое число от 1 до 999.';
-  if (draft.item_title.length > 200) errors.item_title = 'Название: до 200 символов.';
-  if (draft.comment.length > 500) errors.comment = 'Комментарий: до 500 символов.';
+  if (draft.items.length < 1 || draft.items.length > MAX_ITEMS) errors.items = `В заказе от 1 до ${MAX_ITEMS} позиций.`;
+  for (const [key, fields] of Object.entries(itemsErrors(draft))) {
+    for (const [field, message] of Object.entries(fields)) errors[`${key}.${field}`] = message;
+  }
   return errors;
 }

@@ -9,12 +9,19 @@ export interface Tariff {
 export interface StatusDefinition { key: string; name: string; icon: string; stage: number | null; order: number; terminal: boolean }
 export interface AppConfig {
   rate_cny_rub: string; rate_updated_at: string; commission_percent: string; commission_min_rub: string;
-  contacts: { owner: string; manager: string; channel: string }; statuses: StatusDefinition[]; tariffs: Tariff[];
+  contacts: { owner: string; manager: string; channel: string; review: string }; statuses: StatusDefinition[]; tariffs: Tariff[];
   insurance_percent: string; packing_fee_rub: string; photo_report_fee_rub: string;
 }
 export interface OrderEvent { id: number; type: string; from_status: string | null; to_status: string | null; payload: Record<string, unknown>; created_at: string }
+/** Одна позиция мультизаказа: своя ссылка, название, цена и количество. */
+export interface OrderItem {
+  id: number; position: number; link: string; platform: string; item_title: string; price_cny: string;
+  quantity: number; comment: string; goods_rub: string;
+}
+export interface OrderItemInput { link: string; price_cny: string; quantity: number; item_title: string; comment: string }
 export interface Order {
   id: number; public_no: string; link: string; platform: string; item_title: string; price_cny: string; quantity: number; comment: string;
+  items: OrderItem[];
   tariff_id: number; tariff_name: string; tariff_price_per_kg: string; tariff_price_currency: TariffCurrency; tariff_price_value: string;
   rate: string; commission_percent: string; commission_min_rub: string;
   weight_kg: string; boxes: number; goods_rub: string; commission_rub: string; total_rub: string; delivery_estimate_rub: string; delivery_final_rub: string | null;
@@ -28,7 +35,9 @@ export interface CalcInput {
   price_cny: string; quantity: number; tariff_id: number; weight_kg: string; boxes: number;
   insurance_enabled: boolean; packing_enabled: boolean; photo_report_enabled: boolean;
 }
-export interface OrderInput extends CalcInput { idempotency_key: string; link: string; item_title: string; comment: string }
+export interface OrderInput extends CalcInput {
+  idempotency_key: string; link: string; item_title: string; comment: string; items: OrderItemInput[];
+}
 export interface PricingResult {
   goods_rub: string; commission_rub: string; total_rub: string; delivery_estimate_rub: string; commission_is_minimum: boolean;
   insurance_rub: string; packing_rub: string; photo_report_rub: string; extras_total_rub: string; total_with_extras_rub: string;

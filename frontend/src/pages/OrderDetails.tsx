@@ -3,11 +3,12 @@ import type { AppConfig, Navigate, Order } from '../api/types';
 import { useOrder } from '../api/hooks';
 import { StatusBadge } from '../components/StatusBadge';
 import { Timeline } from '../components/Timeline';
+import { PlatformMark } from '../components/PlatformMark';
 import { ErrorState, LoadingState } from '../components/UiStates';
 import { Icon } from '../components/Icon';
-import { dateMsk, boxesLabel, decimalNumber, money, productDomain, statusLabel } from '../lib/format';
+import { boxesLabel, dateMsk, decimalNumber, itemTitle, money, orderItemList, positionsLabel, statusLabel } from '../lib/format';
 import { Exact } from '../lib/pricing';
-import { platformLabel } from '../lib/validation';
+import { platformFromUrl, platformName } from '../lib/platforms';
 import { copyText, haptic, openExternal, openTelegram } from '../lib/telegram';
 
 function eventText(event: Order['events'][number], config: AppConfig): string {
@@ -49,6 +50,8 @@ export function OrderDetails({ config, orderId, onNavigate }: { config: AppConfi
   const visibleEvents = order.events.filter((event) => ['created', 'status_changed', 'delivery_amount_set', 'tracking'].includes(event.type)).sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
   const awaitingPayment = order.status === 'awaiting_delivery_payment';
   const hasExtras = order.extras_total_rub !== '0';
+  const items = orderItemList(order);
+  const reviewContact = config.contacts.review || config.contacts.manager;
 
   return (
     <div className="page page-stack">
@@ -76,10 +79,18 @@ export function OrderDetails({ config, orderId, onNavigate }: { config: AppConfi
       </section>}
 
       <section className="card product-details">
-        <div className="section-heading"><h2>{order.item_title || productDomain(order.link)}</h2><Icon name="shopping-bag" size={22} /></div>
-        <p className="muted">{platformLabel(order.link).name} · {order.quantity} шт.</p>
-        {order.comment && <p className="product-comment">{order.comment}</p>}
-        <button className="button button--secondary button--block" onClick={() => setLinkError(!openExternal(order.link))}>Открыть товар<Icon name="external-link" size={18} /></button>
+        <div className="section-heading"><h2>Товары</h2><span className="chip">{positionsLabel(items.length)}</span></div>
+        <div className="breakdown">
+          {items.map(item => <div className="breakdown-row" key={item.id || item.position}>
+            <dt>
+              <span className="inline-row"><PlatformMark link={item.link} size="sm" /><strong>{itemTitle(item)}</strong></span>
+              <small>{decimalNumber(item.price_cny, 2)} ¥ × {item.quantity} · {platformName(platformFromUrl(item.link))}</small>
+              {item.comment && <small>{item.comment}</small>}
+            </dt>
+            <dd><button className="icon-button" type="button" aria-label={`Открыть товар «${itemTitle(item)}»`} onClick={() => setLinkError(!openExternal(item.link))}><Icon name="external-link" size={20} /></button></dd>
+          </div>)}
+          <div className="breakdown-row"><dt>Стоимость товаров</dt><dd>{money(order.goods_rub)}</dd></div>
+        </div>
         {linkError && <p className="field-error" role="alert">Не удалось открыть ссылку. Допустимы только ссылки http:// и https://.</p>}
       </section>
 
@@ -116,6 +127,12 @@ export function OrderDetails({ config, orderId, onNavigate }: { config: AppConfi
         <div className="section-heading"><h2>История заказа</h2><span className="muted text-small">МСК</span></div>
         {visibleEvents.length ? <ol className="event-list">{visibleEvents.map((event) => <li className="event-item" key={event.id}><span className="event-dot" aria-hidden="true" /><div><strong>{eventText(event, config)}</strong><time className="event-time" dateTime={event.created_at}>{dateMsk(event.created_at)}</time></div></li>)}</ol> : <p className="muted">История появится после первого обновления заказа.</p>}
       </section>
+
+      {order.status === 'delivered' && <section className="card card--glow" aria-label="Отзыв о заказе">
+        <div className="section-heading"><h2>Отзыв о заказе</h2><Icon name="send" size={22} /></div>
+        <p className="muted">Заказ доставлен. Расскажите, как всё прошло — это помогает нам и другим покупателям.</p>
+        <button className="button button--primary button--block" type="button" onClick={() => openTelegram(reviewContact, `Здравствуйте! Хочу оставить отзыв о заказе ${order.public_no}.`)}><Icon name="send" size={18} />Оставить отзыв</button>
+      </section>}
 
       <button className="button button--secondary button--block" onClick={() => openTelegram(config.contacts.manager, `Здравствуйте! У меня вопрос по заказу ${order.public_no}.`)}><Icon name="send" size={18} />Вопрос по заказу</button>
     </div>

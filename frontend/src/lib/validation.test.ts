@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { boxesValid, decimalValid, firstStepErrors, normalizeDecimal, platformLabel, safeHttpUrl, type DraftFields } from './validation';
+import {
+  boxesValid, createDraftItem, decimalValid, firstStepErrors, itemErrors, itemsErrors,
+  normalizeDecimal, platformLabel, quantityValid, safeHttpUrl, type DraftFields, type DraftItem,
+} from './validation';
 
-const validDraft: DraftFields = { link: 'https://shop.example/item/42', price_cny: '300', quantity: '1', item_title: '', comment: '', tariff_id: 1, weight_kg: '2.3', boxes: '1',
+const item: DraftItem = createDraftItem({ link: 'https://shop.example/item/42', price_cny: '300', quantity: '1' });
+const validDraft: DraftFields = { items: [item], tariff_id: 1, weight_kg: '2.3', boxes: '1',
   insurance_enabled: false, packing_enabled: false, photo_report_enabled: false };
 
 describe('order input validation', () => {
@@ -18,9 +22,18 @@ describe('order input validation', () => {
     expect(decimalValid(value, '0.01', '1000', 3)).toBe(false);
   });
 
-  it('accepts unknown stores and marks them as unrecognized', () => {
+  it('accepts a valid single position and an unknown store', () => {
     expect(firstStepErrors(validDraft)).toEqual({});
-    expect(platformLabel(validDraft.link)).toEqual({ name: 'Другая площадка', known: false });
+    expect(platformLabel(item.link)).toEqual({ name: 'Другая площадка', known: false });
+  });
+
+  it('requires at least one position', () => {
+    expect(firstStepErrors({ ...validDraft, items: [] })).toHaveProperty('items');
+  });
+
+  it('rejects more than twenty positions', () => {
+    const items = Array.from({ length: 21 }, () => createDraftItem({ ...item }));
+    expect(firstStepErrors({ ...validDraft, items })).toHaveProperty('items');
   });
 
   it.each(['https://eviltaobao.com/item', 'https://taobao.com.evil.example/item', 'https://dewu.com.evil.example/item'])('does not confuse suffixes with trusted platform domains: %s', (link) => {
@@ -29,7 +42,8 @@ describe('order input validation', () => {
   });
 
   it.each(['https://tb.cn/abc', 'https://m.tb.cn/abc', 'https://e.tb.cn/abc', 'https://item.taobao.com/item.htm?id=1'])('recognizes Taobao full and short links: %s', (link) => {
-    expect(platformLabel(link)).toEqual({ name: 'Taobao', known: true });
+    const expected = link.includes('m.tb.cn') ? 'Xianyu / Goofish' : 'Taobao';
+    expect(platformLabel(link)).toEqual({ name: expected, known: true });
   });
 
   it.each([
@@ -38,6 +52,7 @@ describe('order input validation', () => {
     ['https://detail.tmall.com/item.htm?id=1', 'Tmall'],
     ['https://detail.1688.com/offer/1.html', '1688'],
     ['https://www.goofish.com/item?id=1', 'Xianyu / Goofish'],
+    ['https://mobile.yangkeduo.com/goods.html?goods_id=1', 'Pinduoduo'],
   ])('labels every supported store: %s', (link, name) => {
     expect(platformLabel(link)).toEqual({ name, known: true });
   });
@@ -46,12 +61,22 @@ describe('order input validation', () => {
     expect(safeHttpUrl(link)).toBeNull();
   });
 
-  it('enforces quantity and text limits', () => {
-    expect(firstStepErrors({ ...validDraft, quantity: '999', item_title: 'a'.repeat(200), comment: 'b'.repeat(500) })).toEqual({});
-    const errors = firstStepErrors({ ...validDraft, quantity: '1000', item_title: 'a'.repeat(201), comment: 'b'.repeat(501), link: 'https://example.com/' + 'x'.repeat(2000) });
-    expect(Object.keys(errors).sort()).toEqual(['comment', 'item_title', 'link', 'quantity']);
-    expect(firstStepErrors({ ...validDraft, quantity: '1.5' })).toHaveProperty('quantity');
-    expect(firstStepErrors({ ...validDraft, quantity: '0' })).toHaveProperty('quantity');
+  it('enforces quantity and text limits per position', () => {
+    const limit = createDraftItem({ ...item, quantity: '999', item_title: 'a'.repeat(200), comment: 'b'.repeat(500) });
+    expect(itemErrors(limit)).toEqual({});
+    const invalid = createDraftItem({ ...item, quantity: '1000', item_title: 'a'.repeat(201), comment: 'b'.repeat(501), link: 'https://example.com/' + 'x'.repeat(2000) });
+    expect(Object.keys(itemErrors(invalid)).sort()).toEqual(['comment', 'item_title', 'link', 'quantity']);
+    expect(quantityValid('1.5')).toBe(false);
+    expect(quantityValid('0')).toBe(false);
+    expect(quantityValid('1')).toBe(true);
+    expect(quantityValid('999')).toBe(true);
+  });
+
+  it('reports only broken positions through itemsErrors', () => {
+    const broken = createDraftItem({ ...item, link: '' });
+    const draft = { ...validDraft, items: [item, broken] };
+    expect(Object.keys(itemsErrors(draft))).toEqual([broken.key]);
+    expect(firstStepErrors(draft)).toHaveProperty(`${broken.key}.link`);
   });
 
   it('does not treat extra service flags as invalid input', () => {

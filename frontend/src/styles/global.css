@@ -407,3 +407,16 @@ dl.breakdown { margin: 8px 0 0; }
   .skeleton { animation: none; background: var(--color-skeleton-static); }
   .loading-track > span { animation: none; width: 100%; }
 }
+
+/* Colored platform badge: small brand mark before a product link or order item. */
+.platform-mark { display: inline-grid; place-items: center; flex: 0 0 auto; width: 28px; height: 28px; border-radius: 9px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; line-height: 1; color: #fff; background: var(--platform-unknown); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16); }
+.platform-mark--sm { width: 22px; height: 22px; border-radius: 7px; font-size: 9px; }
+.platform-mark--goofish { background: var(--platform-goofish); color: #231a00; }
+.platform-mark--poizon { background: var(--platform-poizon); color: #00272c; }
+.platform-mark--taobao { background: var(--platform-taobao); color: #fff; }
+.platform-mark--tmall { background: var(--platform-tmall); color: #fff; }
+.platform-mark--ali1688 { background: var(--platform-1688); color: #fff; }
+.platform-mark--pinduoduo { background: var(--platform-pinduoduo); color: #fff; }
+.platform-mark--unknown { background: var(--color-surface-raised); color: var(--color-muted); box-shadow: inset 0 0 0 1px var(--color-border); }
+.platform-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.platform-line > .input { flex: 1; min-width: 0; }

@@ -7,9 +7,9 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Timeline } from '../components/Timeline';
 import { EmptyState, ErrorState, LoadingState } from '../components/UiStates';
 import { Icon } from '../components/Icon';
-import { dateMsk, decimalNumber, money } from '../lib/format';
+import { dateMsk, decimalNumber, itemTitle, money } from '../lib/format';
 import { platformFromUrl, platformName } from '../lib/platforms';
-import { haptic } from '../lib/telegram';
+import { haptic, openTelegram } from '../lib/telegram';
 
 const pageSize = 20;
 
@@ -44,6 +44,8 @@ export function Orders({ config, onNavigate }: { config: AppConfig; onNavigate: 
   const trackError = tracked.error instanceof ApiError && tracked.error.status === 404
     ? 'Заказ с таким номером не найден. Проверьте трек-номер или откройте заказ в списке.'
     : tracked.error?.message;
+  const deliveredOrders = group === 'completed' ? (orders.data?.items ?? []).filter(order => order.status === 'delivered') : [];
+  const reviewContact = config.contacts.review || config.contacts.manager;
 
   return (
     <div className="page page-stack">
@@ -101,6 +103,15 @@ export function Orders({ config, onNavigate }: { config: AppConfig; onNavigate: 
             <span className="muted text-small">{offset + 1}–{Math.min(offset + orders.data.items.length, orders.data.total)} из {orders.data.total}</span>
             <button className="button button--secondary" disabled={offset + pageSize >= orders.data.total} onClick={() => setOffset(offset + pageSize)}>Далее<Icon name="arrow-right" size={18} /></button>
           </nav>}
+          {deliveredOrders.length > 0 && <section className="section" aria-label="Отзывы о доставленных заказах">
+            <div className="section-heading"><h2>Оставить отзыв</h2><span className="chip">Доставленные</span></div>
+            <div className="card form-stack">
+              {deliveredOrders.map(order => <div className="inline-row space-between" key={order.id}>
+                <div><strong>{order.public_no}</strong><p className="field-hint">{itemTitle(order.items[0] ?? order)}</p></div>
+                <button className="button button--secondary" type="button" onClick={() => openTelegram(reviewContact, `Здравствуйте! Хочу оставить отзыв о заказе ${order.public_no}.`)}><Icon name="send" size={16} />Оставить отзыв</button>
+              </div>)}
+            </div>
+          </section>}
         </>
         : <EmptyState title={offset > 0 ? 'Эта страница уже пуста' : group === 'active' ? 'Активных заказов пока нет' : 'Завершённых заказов пока нет'} description={offset > 0 ? 'Статусы изменились. Вернитесь к началу списка, чтобы увидеть актуальные заказы.' : group === 'active' ? 'Добавьте ссылку на товар — приложение рассчитает выкуп и ориентировочную доставку.' : 'Здесь появятся доставленные и отменённые заказы. Активные заказы находятся в соседней вкладке.'} actionLabel={offset > 0 ? 'К началу списка' : group === 'active' ? 'Оформить заказ' : 'Показать активные'} onAction={() => offset > 0 ? setOffset(0) : group === 'active' ? onNavigate({ name: 'wizard' }) : selectGroup('active')} />}
     </div>

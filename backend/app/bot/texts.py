@@ -19,6 +19,7 @@ PLATFORM_LABELS = {
     "taobao": "Taobao",
     "tmall": "Tmall",
     "1688": "1688",
+    "pinduoduo": "Pinduoduo",
 }
 
 
@@ -60,29 +61,50 @@ def client_notification(kind, order, event, settings):
     track = event.payload.get("track_number") or "—"
     text = CLIENT_TEXTS[kind].format(no=escape(order.public_no), manager=escape(settings.manager_username),
                                      sum=escape(ru(int(amount))), track=escape(track))
+    if kind == "created":
+        count = event.payload.get("items")
+        if isinstance(count, int) and count > 1:
+            text += f"\nПозиций в заказе: {count}."
     if kind == "created" and order.extras_total_rub:
         text += f"\nОпции: {escape(options_text(order))}. Доплата: {escape(ru(order.extras_total_rub))} ₽."
+    if kind == "cancelled":
+        reason = event.payload.get("cancel_reason")
+        if isinstance(reason, str) and reason:
+            text += f"\nПричина: {escape(reason)}"
     return text
 
 
-def admin_notification(order, client, settings):
+def admin_notification(order, client, settings, items=None):
     client_name = "@" + client.username if client.username else client.first_name
-    product = order.item_title or (urlsplit(order.link).hostname or "Товар")
     lines = [
         f"🆕 <b>Новый заказ {escape(order.public_no)}</b>",
         f"Клиент: {escape(client_name)} · ID {escape(str(client.tg_id))}",
-        f'Товар: <a href="{escape(order.link, quote=True)}">{escape(product[:200])}</a>',
-        f"Площадка: {escape(platform_label(order.platform))}",
-        f"Расчёт: {escape(ru(order.price_cny))} ¥ × {escape(str(order.quantity))} × {escape(ru(order.rate))}"
-        f" + комиссия {escape(ru(order.commission_rub))} = {escape(ru(order.total_rub))} ₽",
-        f"Тариф: {escape(order.tariff_name)} · ~{escape(ru(order.weight_kg))} кг",
-        f"Доставка ориентировочно: {escape(ru(order.delivery_estimate_rub))} ₽",
     ]
+    if items:
+        lines.append(f"Позиций: {len(items)}")
+        for index, item in enumerate(items, start=1):
+            title = item.item_title or (urlsplit(item.link).hostname or "Товар")
+            lines.append(f'{index}. <a href="{escape(item.link, quote=True)}">{escape(title[:120])}</a>')
+            lines.append(f"   {escape(ru(item.price_cny))} ¥ × {item.quantity} · {escape(platform_label(item.platform))}")
+        lines.append(f"Товар: {escape(ru(order.price_cny))} ¥ · комиссия {escape(ru(order.commission_rub))}"
+                     f" = {escape(ru(order.total_rub))} ₽")
+    else:
+        product = order.item_title or (urlsplit(order.link).hostname or "Товар")
+        lines.append(f'Товар: <a href="{escape(order.link, quote=True)}">{escape(product[:200])}</a>')
+        lines.append(f"Площадка: {escape(platform_label(order.platform))}")
+        lines.append(f"Расчёт: {escape(ru(order.price_cny))} ¥ × {escape(str(order.quantity))} × {escape(ru(order.rate))}"
+                     f" + комиссия {escape(ru(order.commission_rub))} = {escape(ru(order.total_rub))} ₽")
+    lines.append(f"Тариф: {escape(order.tariff_name)} · ~{escape(ru(order.weight_kg))} кг")
+    lines.append(f"Доставка ориентировочно: {escape(ru(order.delivery_estimate_rub))} ₽")
     if options_text(order):
         lines.append(f"Опции: {escape(options_text(order))} · доплата {escape(ru(order.extras_total_rub))} ₽")
     if order.track_number:
         lines.append(f"Трек-номер: {escape(order.track_number)}")
-    lines.append(f"Комментарий: {escape(order.comment) or '—'}")
+    comments = [item.comment for item in (items or []) if item.comment]
+    if comments:
+        lines.append(f"Комментарий: {escape('; '.join(comments)[:500])}")
+    elif order.comment:
+        lines.append(f"Комментарий: {escape(order.comment)}")
     return "\n".join(lines)
 
 

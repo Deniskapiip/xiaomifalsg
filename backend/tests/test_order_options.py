@@ -121,7 +121,8 @@ async def test_create_order_persists_options_without_changing_total(client, app,
         event = await db.scalar(select(OrderEvent).where(OrderEvent.order_id == order["id"], OrderEvent.type == "created"))
         assert event.payload == {"options": {"insurance": True, "packing": True, "photo_report": True},
                                  "extras_total_rub": "1153", "boxes": 2,
-                                 "tariff_price_currency": "rub", "tariff_price_value": "1800.00"}
+                                 "tariff_price_currency": "rub", "tariff_price_value": "1800.00",
+                                 "items": 1, "items_total_cny": "300"}
 
 
 async def test_create_order_without_options_has_zero_extras(client, auth_headers, order_payload):

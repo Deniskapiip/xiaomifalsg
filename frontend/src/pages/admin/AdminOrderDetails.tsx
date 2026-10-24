@@ -7,14 +7,15 @@ import { ApiError, request } from '../../api/client';
 import { Icon } from '../../components/Icon';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Timeline } from '../../components/Timeline';
+import { PlatformMark } from '../../components/PlatformMark';
 import { ErrorState, LoadingState } from '../../components/UiStates';
-import { dateMsk, boxesLabel, decimalNumber, money, productDomain, statusLabel } from '../../lib/format';
+import { boxesLabel, dateMsk, decimalNumber, itemTitle, money, orderItemList, positionsLabel, statusLabel } from '../../lib/format';
 import { Exact } from '../../lib/pricing';
 import { deliveryAmountValid, statusRequiresConfirmation } from '../../lib/admin-validation';
-import { platformLabel } from '../../lib/validation';
+import { platformFromUrl, platformName } from '../../lib/platforms';
 import { copyText, haptic, openExternal, openUserChat, showConfirm } from '../../lib/telegram';
 
-interface StatusIntent { status: string; notify: boolean; delivery_amount_rub?: string }
+interface StatusIntent { status: string; notify: boolean; delivery_amount_rub?: string; reason?: string }
 type StatusDialog = { kind: 'delivery' | 'confirm'; intent: StatusIntent; previousStatus: string; stale?: boolean };
 
 function uncertainResponse(error: unknown): boolean {
@@ -45,8 +46,9 @@ function notificationError(code: string | null): string {
   return 'Ошибка отправки. Проверьте последующие попытки или напишите вручную';
 }
 
-function ChangeDialog({ dialog, config, amount, setAmount, onCancel, onSubmit }: {
-  dialog: StatusDialog; config: AppConfig; amount: string; setAmount: (value: string) => void; onCancel: () => void; onSubmit: () => void;
+function ChangeDialog({ dialog, config, amount, setAmount, reason, setReason, onCancel, onSubmit }: {
+  dialog: StatusDialog; config: AppConfig; amount: string; setAmount: (value: string) => void;
+  reason: string; setReason: (value: string) => void; onCancel: () => void; onSubmit: () => void;
 }) {
   const element = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -75,6 +77,11 @@ function ChangeDialog({ dialog, config, amount, setAmount, onCancel, onSubmit }:
       </label> : <>
         {dialog.intent.delivery_amount_rub && <p>Итоговая доставка: <strong>{money(dialog.intent.delivery_amount_rub)}</strong></p>}
         <p className="text-small muted">{dialog.intent.notify ? 'Уведомить клиента о смене статуса.' : 'Уведомление клиенту отправлено не будет.'}</p>
+        {dialog.intent.status === 'cancelled' && <label className="field">
+          <span className="field-label">Что случилось? Причина отмены</span>
+          <textarea className="textarea" aria-label="Причина отмены" maxLength={300} rows={3} value={reason} placeholder="Например, товар недоступен у продавца" onChange={event => setReason(event.target.value)} />
+          <span className="field-hint">{reason.length}/300. Необязательно — клиент увидит причину в истории заказа.</span>
+        </label>}
       </>}
       <div className="admin-dialog__actions">
         <button className="button button--secondary" type="button" autoFocus={!delivery} onClick={onCancel}>Не менять</button>
@@ -97,6 +104,7 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
   const [busy, setBusy] = useState<'status' | 'note' | 'check' | 'track' | null>(null);
   const [dialog, setDialog] = useState<StatusDialog | null>(null);
   const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<Error | null>(null);
   const [uncertain, setUncertain] = useState(false);
@@ -171,7 +179,7 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
   function prepareStatus() {
     if (!order || !selectedStatus || locked.current || uncertain) return;
     const intent: StatusIntent = { status: selectedStatus, notify };
-    setMutationError(null); setMessage(null);
+    setMutationError(null); setMessage(null); setReason('');
     if (selectedStatus === 'awaiting_delivery_payment') {
       const initialAmount = order.delivery_final_rub ?? order.delivery_estimate_rub;
       setAmount(deliveryAmountValid(initialAmount) ? initialAmount : '');
@@ -187,7 +195,10 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
       const intent = { ...dialog.intent, delivery_amount_rub: amount.trim() };
       if (statusRequiresConfirmation(dialog.previousStatus, intent.status, config.statuses)) setDialog({ kind: 'confirm', intent, previousStatus: dialog.previousStatus });
       else void saveStatus(intent);
-    } else void saveStatus(dialog.intent, true);
+    } else {
+      const note = dialog.intent.status === 'cancelled' && reason.trim() ? { reason: reason.trim().slice(0, 300) } : {};
+      void saveStatus({ ...dialog.intent, ...note }, true);
+    }
   }
 
   async function saveNote(event: FormEvent) {
@@ -243,6 +254,7 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
   if (!order) return <ErrorState message={query.error?.message || 'Заказ не найден'} onRetry={() => void query.refetch()} />;
   const minimumCommission = new Exact(order.goods_rub).mul(order.commission_percent).div(100).lte(order.commission_min_rub);
   const events = [...order.events].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
+  const items = orderItemList(order);
   const blocked = Boolean(busy) || uncertain;
 
   return <div className="page-stack admin-section">
@@ -279,10 +291,18 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
     </section>
 
     <section className="card product-details page-stack">
-      <div className="section-heading"><h3>{order.item_title || productDomain(order.link)}</h3><Icon name="shopping-bag" size={22} /></div>
-      <p className="muted">{platformLabel(order.link).name} · {order.quantity} шт.</p>
-      {order.comment && <div><p className="field-label">Комментарий клиента</p><p className="product-comment">{order.comment}</p></div>}
-      <button className="button button--secondary button--block" type="button" onClick={() => setLinkError(!openExternal(order.link))}>Открыть товар<Icon name="external-link" size={18} /></button>
+      <div className="section-heading"><h3>Товары</h3><span className="chip">{positionsLabel(items.length)}</span></div>
+      <div className="breakdown">
+        {items.map(item => <div className="breakdown-row" key={item.id || item.position}>
+          <dt>
+            <span className="inline-row"><PlatformMark link={item.link} size="sm" /><strong>{itemTitle(item)}</strong></span>
+            <small>{decimalNumber(item.price_cny, 2)} ¥ × {item.quantity} · {platformName(platformFromUrl(item.link))}</small>
+            {item.comment && <small>{item.comment}</small>}
+          </dt>
+          <dd><button className="icon-button" type="button" aria-label={`Открыть товар «${itemTitle(item)}»`} onClick={() => setLinkError(!openExternal(item.link))}><Icon name="external-link" size={20} /></button></dd>
+        </div>)}
+        <div className="breakdown-row"><dt>Стоимость товаров</dt><dd>{money(order.goods_rub)}</dd></div>
+      </div>
       {linkError && <p className="field-error" role="alert">Не удалось открыть ссылку. Допустимы только ссылки http:// и https://.</p>}
     </section>
 
@@ -327,7 +347,7 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
 
     <section className="section">
       <div className="section-heading"><h3>История заказа</h3><span className="muted text-small">МСК</span></div>
-      {events.length ? <ol className="event-list admin-history-list">{events.map(event => <li className="event-item" key={event.id}><span className="event-dot" aria-hidden="true" /><div><strong>{eventTitle(event, config)}</strong><p className="muted text-small">{actorName(event)}</p>{event.type === 'note' && <p className="admin-event-note">{typeof event.payload.note === 'string' && event.payload.note ? event.payload.note : 'Заметка очищена'}</p>}<time className="event-time" dateTime={event.created_at}>{dateMsk(event.created_at)}</time></div></li>)}</ol> : <p className="muted">История пока пуста.</p>}
+      {events.length ? <ol className="event-list admin-history-list">{events.map(event => <li className="event-item" key={event.id}><span className="event-dot" aria-hidden="true" /><div><strong>{eventTitle(event, config)}</strong><p className="muted text-small">{actorName(event)}</p>{event.type === 'note' && <p className="admin-event-note">{typeof event.payload.note === 'string' && event.payload.note ? event.payload.note : 'Заметка очищена'}</p>}{event.type === 'status_changed' && typeof event.payload.cancel_reason === 'string' && event.payload.cancel_reason && <p className="admin-event-note">Причина отмены: {event.payload.cancel_reason}</p>}<time className="event-time" dateTime={event.created_at}>{dateMsk(event.created_at)}</time></div></li>)}</ol> : <p className="muted">История пока пуста.</p>}
     </section>
 
     <section className="card page-stack">
@@ -338,6 +358,6 @@ export function AdminOrderDetails({ config, orderId, onNavigate, filters }: { co
         <p className={entry.ok ? 'text-small muted' : 'field-error'}>{entry.ok ? 'Отправлено' : notificationError(entry.error)}</p><time className="event-time" dateTime={entry.created_at}>{dateMsk(entry.created_at)}</time>
       </li>)}</ul> : <p className="muted">Попыток отправки ещё нет.</p>}
     </section>
-    {dialog && <ChangeDialog key={dialog.kind} dialog={dialog} config={config} amount={amount} setAmount={setAmount} onCancel={() => setDialog(null)} onSubmit={submitDialog} />}
+    {dialog && <ChangeDialog key={dialog.kind} dialog={dialog} config={config} amount={amount} setAmount={setAmount} reason={reason} setReason={setReason} onCancel={() => setDialog(null)} onSubmit={submitDialog} />}
   </div>;
 }
